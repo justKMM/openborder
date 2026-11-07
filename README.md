@@ -6,7 +6,7 @@ OpenBorder migrates Datadog dashboards and monitors to [Dash0](https://www.dash0
 
 The translation path contains **no LLMs**. Every query passes through a parser and named translation rules, and each rule has a fixed fidelity tier. That makes every translation deterministic, testable, and explainable.
 
-> 🚧 **Status:** hackathon build in progress (thinc! 2026, Dash0 challenge). The commands below describe the target interface. Today `init`, `config`, `version` and `--help` work; `discover`, `plan`, `apply` and `explain` exist as stubs that exit with an error. See [docs/SCOPE.md](docs/SCOPE.md) for what is in and out.
+> 🚧 **Status:** hackathon build in progress (thinc! 2026, Dash0 challenge). The commands below describe the target interface. Today `init`, `config`, `discover`, `version` and `--help` work; `plan`, `apply` and `explain` exist as stubs that exit with an error. See [docs/SCOPE.md](docs/SCOPE.md) for what is in and out.
 
 ## Why
 
@@ -42,7 +42,7 @@ pip install -r requirements.txt
 
 python -m openborder init                                   # prompts for credentials, saves them to cli/.env (gitignored)
 
-python -m openborder discover                                # list dashboards & monitors
+python -m openborder discover                                # list dashboards & monitors (read-only); filter with --name redis, --tag integration:redisdb
 python -m openborder plan --dashboard abc-def-ghi --monitor-tag integration:redisdb
 python -m openborder explain --query 'avg:redis.stats.keyspace_hits{*}'
 python -m openborder apply ./migration                      # asks for confirmation; --auto-approve to skip
@@ -58,6 +58,10 @@ python -m openborder apply ./migration                      # asks for confirmat
 | `DASH0_AUTH_TOKEN` | none | Dash0: Settings > Auth Tokens |
 | `DASH0_API_URL` | `https://api.eu-west-1.aws.dash0.com` | must match your Dash0 org's region |
 | `DASH0_DATASET` | `default` | Dash0 dataset slug |
+
+**Datadog credentials.** `DD_API_KEY` and `DD_APP_KEY` are sent as the `DD-API-KEY` and `DD-APPLICATION-KEY` headers, so the first must be an *API key* and the second an *application key*. A Datadog Personal Access Token (`ddpat_…`) is accepted in the application-key slot; it was observed to work on the EU site, but isn't something we've tested beyond that. If `discover` reports HTTP 401, the usual cause is the two values being swapped, or a key from a different Datadog site than `DD_SITE`.
+
+**What `discover` can see.** Datadog's API lists only *custom or cloned* dashboards, not its built-in ones. To try the Redis demo content, import `redisdb/assets/dashboards/overview.json` and `redisdb/assets/monitors/high_mem.json` from [integrations-core](https://github.com/DataDog/integrations-core) into your Datadog org first.
 
 To work offline, use `--from-dir PATH` instead of the Datadog API. It reads exported dashboard and monitor JSON, for example from [DataDog/integrations-core](https://github.com/DataDog/integrations-core).
 

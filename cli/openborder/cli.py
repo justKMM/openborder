@@ -2,7 +2,8 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from openborder import __version__, config
+from openborder import __version__, config, report
+from openborder.sources.datadog.client import DatadogClient, DatadogError
 
 app = typer.Typer(
     help="OpenBorder: migrate Datadog dashboards and monitors to Dash0, deterministically.",
@@ -82,9 +83,32 @@ def config_set(key: str, value: str) -> None:
 
 
 @app.command()
-def discover() -> None:
-    """List dashboards and monitors in the source Datadog org."""
-    _not_implemented("discover")
+def discover(
+    name: str | None = typer.Option(None, "--name", "-n", help="Only items whose name contains this text."),
+    tag: str | None = typer.Option(
+        None, "--tag", "-t", help="Only monitors with this tag, e.g. integration:redisdb. Dashboards aren't tagged."
+    ),
+) -> None:
+    """List dashboards and monitors in the source Datadog org (read-only)."""
+    settings = config.load_settings()
+    missing = [k for k in ("DD_API_KEY", "DD_APP_KEY") if k not in settings]
+    if missing:
+        console.print(f"[red]Missing {', '.join(missing)}.[/red] Run `python -m openborder init` first.")
+        raise typer.Exit(code=1)
+    try:
+        with DatadogClient(settings["DD_API_KEY"], settings["DD_APP_KEY"], settings["DD_SITE"]) as dd:
+            dashboards = dd.list_dashboards()
+            monitors = dd.list_monitors(monitor_tags=tag)
+            site = dd.site
+    except DatadogError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1)
+    report.print_discovery(
+        console,
+        report.filter_by_name(dashboards, "title", name),
+        report.filter_by_name(monitors, "name", name),
+        site,
+    )
 
 
 @app.command()

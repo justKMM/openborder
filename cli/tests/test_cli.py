@@ -13,7 +13,7 @@ def test_version():
 
 
 def test_unimplemented_commands_fail_loudly():
-    for command in ["discover", "plan", "apply", "explain"]:
+    for command in ["plan", "apply", "explain"]:
         result = runner.invoke(app, [command])
         assert result.exit_code == 1
         assert "not implemented" in result.output

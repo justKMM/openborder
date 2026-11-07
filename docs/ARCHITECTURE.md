@@ -37,7 +37,7 @@ cli/                         # all CLI logic lives here; run from this directory
     config.py                # credentials/settings in cli/.env (shell-side; never imported by core)
     ir.py                    # all IR models (pydantic)
     sources/datadog/
-      client.py              # Datadog API (httpx): list/get dashboards, monitors
+      client.py              # Datadog API (httpx), read-only: list dashboards/monitors (get-by-id comes with `plan`)
       files.py               # load exported JSON
       query_parser.py        # hand-written recursive-descent parser → DD AST
       lower.py               # DD AST → IR Expr; one function per rule id
@@ -225,6 +225,14 @@ migration.log        # JSON lines: one finding per line (the "logs" the brief as
 Configuration: `DASH0_AUTH_TOKEN`, `DASH0_API_URL` (default `https://api.eu-west-1.aws.dash0.com`), `DASH0_DATASET` (default `default`). Datadog: `DD_API_KEY`, `DD_APP_KEY`, `DD_SITE` (default `datadoghq.eu`).
 
 These are stored by `openborder init` / `config set` in `cli/.env` (gitignored; override the location with `OPENBORDER_ENV_FILE`). `config.load_settings()` resolves each value as real environment variable, then file, then default. The clients receive these as plain arguments from the CLI shell; they never read the environment themselves. The `.env` parser is about 30 lines of standard library, so we don't depend on `python-dotenv`.
+
+## Datadog API notes (observed)
+
+- **Base URL:** `https://api.<site>`; the site is normalized, so `datadoghq.eu`, `app.datadoghq.eu` and a full URL all work.
+- **Auth:** `DD-API-KEY` + `DD-APPLICATION-KEY` headers. Verified against a real EU org: this works with an API key plus either an application key or a `ddpat_` Personal Access Token in the second slot. The `ddpat_` token alone also worked as `Authorization: Bearer`; we don't use that mode.
+- **Dashboards:** `GET /api/v1/dashboard?count=100&start=N` returns summaries only (`id`, `title`, `layout_type`, `modified_at`, and so on). It lists only custom or cloned dashboards, never Datadog's built-in ones. `paginate()` follows `start` until a short page and stops if a page adds nothing new.
+- **Monitors:** `GET /api/v1/monitor`; with no `page` parameter Datadog returns every match in one response. `--tag` maps to `monitor_tags`.
+- **Errors:** HTTP 401/403 and 429 get specific messages (`explain_http_error`); network failures become a `DatadogError`. The CLI never prints credentials.
 
 ## Future: GUI
 
