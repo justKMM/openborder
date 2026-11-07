@@ -6,7 +6,7 @@ OpenBorder migrates Datadog dashboards and monitors to [Dash0](https://www.dash0
 
 The translation path contains **no LLMs**. Every query passes through a parser and named translation rules, and each rule has a fixed fidelity tier. That makes every translation deterministic, testable, and explainable.
 
-> 🚧 **Status:** hackathon build in progress (thinc! 2026, Dash0 challenge). The commands below describe the target interface. See [docs/SCOPE.md](docs/SCOPE.md) for what is in and out.
+> 🚧 **Status:** hackathon build in progress (thinc! 2026, Dash0 challenge). The commands below describe the target interface. Today only `python -m openborder version` and `--help` work; `discover`, `plan`, `apply` and `explain` exist as stubs that exit with an error. See [docs/SCOPE.md](docs/SCOPE.md) for what is in and out.
 
 ## Why
 
@@ -33,10 +33,12 @@ The original Datadog definition is always kept, both in the generated artifacts 
 
 ## Quickstart
 
-**Requirements:** Python 3.12+, [uv](https://docs.astral.sh/uv/). Docker is optional; it's used for `promtool` validation and the live-data demo.
+**Requirements:** Python 3.12+. Docker is optional; it's used for `promtool` validation and the live-data demo.
 
 ```bash
-uv sync
+cd cli
+python -m venv venv && source venv/bin/activate     # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 
 export DD_API_KEY=...            # Datadog → Organization Settings → API Keys
 export DD_APP_KEY=...            # Datadog → Organization Settings → Application Keys
@@ -45,10 +47,10 @@ export DASH0_AUTH_TOKEN=...      # Dash0 → Settings → Auth Tokens
 export DASH0_API_URL=https://api.eu-west-1.aws.dash0.com   # default; match your region
 export DASH0_DATASET=default     # default
 
-uv run openborder discover                                # list dashboards & monitors
-uv run openborder plan --dashboard abc-def-ghi --monitor-tag integration:redisdb
-uv run openborder explain --query 'avg:redis.stats.keyspace_hits{*}'
-uv run openborder apply ./migration                      # asks for confirmation; --auto-approve to skip
+python -m openborder discover                                # list dashboards & monitors
+python -m openborder plan --dashboard abc-def-ghi --monitor-tag integration:redisdb
+python -m openborder explain --query 'avg:redis.stats.keyspace_hits{*}'
+python -m openborder apply ./migration                      # asks for confirmation; --auto-approve to skip
 ```
 
 To work offline, use `--from-dir PATH` instead of the Datadog API. It reads exported dashboard and monitor JSON, for example from [DataDog/integrations-core](https://github.com/DataDog/integrations-core).
@@ -69,10 +71,6 @@ Monitors  →  Dash0 check rules
 
 Artifacts written to ./migration  ·  run `openborder apply ./migration` to import
 ```
-
-## Deployment
-
-The CLI is the primary interface. A hosted mode (planned) runs the same deterministic core as a **Vercel** Python function, with **Supabase** storing plans and shareable migration reports. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#deployment-cli-first-hosted-on-vercel--supabase-later).
 
 ## Live-data demo
 
