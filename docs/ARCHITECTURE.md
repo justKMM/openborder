@@ -33,7 +33,8 @@ cli/                         # all CLI logic lives here; run from this directory
   openborder/                # the Python package → `python -m openborder <command>`
     __main__.py              # entry point
     core.py                  # pure entry points: plan(), explain(); no I/O
-    cli.py                   # CLI shell: discover, plan, apply, explain
+    cli.py                   # CLI shell: init, config, discover, plan, apply, explain
+    config.py                # credentials/settings in cli/.env (shell-side; never imported by core)
     ir.py                    # all IR models (pydantic)
     sources/datadog/
       client.py              # Datadog API (httpx): list/get dashboards, monitors
@@ -222,6 +223,8 @@ migration.log        # JSON lines: one finding per line (the "logs" the brief as
 | `POST /api/import/check-rules` | `{items: [...]}`, at most 1000, **atomic** (one invalid item rejects the whole batch), 2 MB body. Rule fields: `id, name, expression, thresholds{degraded, failed}, interval, for, keep_firing_for, labels, annotations, enabled`. |
 
 Configuration: `DASH0_AUTH_TOKEN`, `DASH0_API_URL` (default `https://api.eu-west-1.aws.dash0.com`), `DASH0_DATASET` (default `default`). Datadog: `DD_API_KEY`, `DD_APP_KEY`, `DD_SITE` (default `datadoghq.eu`).
+
+These are stored by `openborder init` / `config set` in `cli/.env` (gitignored; override the location with `OPENBORDER_ENV_FILE`). `config.load_settings()` resolves each value as real environment variable, then file, then default. The clients receive these as plain arguments from the CLI shell; they never read the environment themselves. The `.env` parser is about 30 lines of standard library, so we don't depend on `python-dotenv`.
 
 ## Future: GUI
 
