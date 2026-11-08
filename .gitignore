@@ -1,0 +1,24 @@
+### Claude
+CLAUDE.md
+CONTRIBUTING.md
+.env
+
+### Backend - Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+### OpenBorder output: written by `plan` / `apply`
+migration/
+
+#### Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

@@ -1,0 +1,350 @@
+import json
+from pathlib import Path
+
+import typer
+from rich.console import Console
+from rich.table import Table
+
+from openborder import __version__, config, core, promtool, report
+from openborder import explain as explainer
+from openborder.apply import PlanError, load_plan
+from openborder.dash0_client import Dash0Client, Dash0Error
+from openborder.sources.datadog.client import DatadogClient, DatadogError
+from openborder.sources.datadog.files import load_directory
+from openborder.targets.promql import render
+
+app = typer.Typer(
+    help="OpenBorder: migrate Datadog dashboards and monitors to Dash0, deterministically.",
+    no_args_is_help=True,
+    add_completion=False,
+)
+config_app = typer.Typer(help="View or change stored credentials and settings.", no_args_is_help=True)
+app.add_typer(config_app, name="config")
+console = Console()
+
+
+@app.command()
+def version() -> None:
+    """Print the OpenBorder version."""
+    console.print(__version__)
+
+
+@app.command()
+def init() -> None:
+    """Prompt for credentials and settings and save them, so you don't have to export them.
+
+    Safe to re-run to update values: press Enter to keep the current one.
+    """
+    current = config.read_env_file()
+    console.print(f"Saving to [bold]{config.env_file_path()}[/bold] (gitignored). Enter keeps the current value.\n")
+    updates: dict[str, str] = {}
+    for s in config.SETTINGS:
+        have = current.get(s.key)
+        console.print(f"[dim]{s.hint}[/dim]")
+        if s.secret:
+            label = f"{s.key} [keep {config.mask(have)}]" if have else s.key
+            value = typer.prompt(label, default="", show_default=False, hide_input=True)
+        else:
+            value = typer.prompt(s.key, default=have or s.default or "", show_default=bool(have or s.default))
+        value = value.strip()
+        if value:
+            updates[s.key] = value
+        elif not have:
+            console.print(f"[yellow]  {s.key} left unset[/yellow]")
+    if updates:
+        config.update_env_file(updates)
+    console.print("\n[green]Saved.[/green] Run `python -m openborder config show` to review.")
+
+
+@config_app.command("show")
+def config_show() -> None:
+    """Show current settings (secrets are masked) and where each value comes from."""
+    table = Table(show_header=True, header_style="bold")
+    for column in ("Key", "Value", "Source"):
+        table.add_column(column)
+    for s in config.SETTINGS:
+        value, source = config.resolve(s.key)
+        shown = "[red]not set[/red]" if value is None else (config.mask(value) if s.secret else value)
+        table.add_row(s.key, shown, source)
+    console.print(table)
+    console.print(f"[dim]File: {config.env_file_path()}  ·  environment variables override the file[/dim]")
+
+
+@config_app.command("set")
+def config_set(key: str, value: str) -> None:
+    """Set one value, e.g. `config set DD_SITE datadoghq.com`."""
+    key = key.upper()
+    if key not in config.KEYS:
+        console.print(f"[red]Unknown key {key}.[/red] Valid keys: {', '.join(config.KEYS)}")
+        raise typer.Exit(code=2)
+    try:
+        path = config.update_env_file({key: value})
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=2)
+    console.print(f"Saved {key} to {path}")
+
+
+@app.command()
+def discover(
+    name: str | None = typer.Option(None, "--name", "-n", help="Only items whose name contains this text."),
+    tag: str | None = typer.Option(
+        None, "--tag", "-t", help="Only monitors with this tag, e.g. integration:redisdb. Dashboards aren't tagged."
+    ),
+    as_json: bool = typer.Option(False, "--json", help="Print the result as JSON instead of tables."),
+) -> None:
+    """List dashboards and monitors in the source Datadog org (read-only)."""
+    settings = config.load_settings()
+    missing = [k for k in ("DD_API_KEY", "DD_APP_KEY") if k not in settings]
+    if missing:
+        console.print(f"[red]Missing {', '.join(missing)}.[/red] Run `python -m openborder init` first.")
+        raise typer.Exit(code=1)
+    try:
+        with DatadogClient(settings["DD_API_KEY"], settings["DD_APP_KEY"], settings["DD_SITE"]) as dd:
+            dashboards = dd.list_dashboards()
+            monitors = dd.list_monitors(monitor_tags=tag)
+            site = dd.site
+    except DatadogError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1)
+    dashboards = report.filter_by_name(dashboards, "title", name)
+    monitors = report.filter_by_name(monitors, "name", name)
+    if as_json:
+        document = {
+            "site": site,
+            "dashboards": [
+                {k: d.get(k) for k in ("id", "title", "description", "layout_type", "modified_at")}
+                for d in sorted(dashboards, key=lambda d: (str(d.get("title", "")).lower(), str(d.get("id"))))
+            ],
+            "monitors": [
+                {"id": m.get("id"), "name": m.get("name"), "type": m.get("type"), "tags": m.get("tags") or []}
+                for m in sorted(monitors, key=lambda m: (str(m.get("name", "")).lower(), m.get("id", 0)))
+            ],
+        }
+        typer.echo(json.dumps(document, indent=2, ensure_ascii=False))
+        return
+    report.print_discovery(console, dashboards, monitors, site)
+
+
+def _fail(message: str, code: int = 1) -> typer.Exit:
+    console.print(f"[red]{message}[/red]")
+    return typer.Exit(code=code)
+
+
+@app.command()
+def plan(
+    from_dir: Path | None = typer.Option(
+        None, "--from-dir", help="Read exported Datadog JSON from this folder instead of calling the API."
+    ),
+    dashboard: list[str] = typer.Option([], "--dashboard", "-d", help="Datadog dashboard ID (repeatable). Default: all."),
+    monitor_tag: str | None = typer.Option(None, "--monitor-tag", help="Only monitors with this tag, e.g. integration:redisdb."),
+    name: str | None = typer.Option(None, "--name", "-n", help="Only dashboards/monitors whose name contains this text."),
+    no_dashboards: bool = typer.Option(False, "--no-dashboards", help="Skip dashboards."),
+    no_monitors: bool = typer.Option(False, "--no-monitors", help="Skip monitors."),
+    out: Path = typer.Option(Path("migration"), "--out", "-o", help="Where to write the plan."),
+    enable_approximate: bool = typer.Option(
+        False, "--enable-approximate", help="Import approximate (~) alerts enabled instead of disabled."
+    ),
+    promtool_check: bool = typer.Option(True, "--promtool/--no-promtool", help="Syntax-check PromQL with promtool (needs Docker)."),
+) -> None:
+    """Translate dashboards and monitors and write reviewable artifacts (nothing is imported)."""
+    if from_dir is not None:
+        if not from_dir.is_dir():
+            raise _fail(f"--from-dir {from_dir} is not a folder.")
+        loaded = load_directory(from_dir)
+        dashboards, monitors, skipped = loaded.dashboards, loaded.monitors, loaded.skipped
+        source = {"kind": "datadog", "mode": "files", "path": str(from_dir)}
+        site = None
+    else:
+        settings = config.load_settings()
+        missing = [k for k in ("DD_API_KEY", "DD_APP_KEY") if k not in settings]
+        if missing:
+            raise _fail(f"Missing {', '.join(missing)}. Run `python -m openborder init`, or use --from-dir.")
+        dashboards, monitors, skipped = [], [], []
+        try:
+            with DatadogClient(settings["DD_API_KEY"], settings["DD_APP_KEY"], settings["DD_SITE"]) as dd:
+                site = dd.site
+                if not no_dashboards:
+                    summaries = dd.list_dashboards()
+                    if dashboard:
+                        unknown = sorted(set(dashboard) - {s["id"] for s in summaries})
+                        if unknown:
+                            raise _fail(f"No such dashboard ID(s) in {site}: {', '.join(unknown)}. Run `discover` to list them.")
+                        summaries = [s for s in summaries if s["id"] in dashboard]
+                    dashboards = [dd.get_dashboard(s["id"]) for s in summaries]
+                if not no_monitors:
+                    monitors = dd.list_monitors(monitor_tags=monitor_tag)
+        except DatadogError as e:
+            raise _fail(str(e))
+        source = {"kind": "datadog", "mode": "api", "site": site}
+
+    if no_dashboards:
+        dashboards = []
+    if no_monitors:
+        monitors = []
+    if name:
+        dashboards = report.filter_by_name(dashboards, "title", name)
+        monitors = [m for m in monitors if name.lower() in str((m.get("definition") or m).get("name", "")).lower()]
+    if monitor_tag and from_dir is not None:
+        monitors = [m for m in monitors if monitor_tag in ((m.get("definition") or m).get("tags") or []) + (m.get("tags") or [])]
+    if not dashboards and not monitors:
+        raise _fail("Nothing to plan: no dashboards or monitors matched." + (" Run `discover` to see what the org contains." if from_dir is None else ""))
+
+    result = core.plan(dashboards, monitors, core.PlanOptions(enable_approximate=enable_approximate), skipped=skipped)
+
+    validation: dict = {"structure": result.structure_errors}
+    if promtool_check:
+        expressions = {}
+        for dash in result.dashboards:
+            for p in dash.panels:
+                for i, q in enumerate(p.queries):
+                    expressions[f"{dash.title} / {p.title or p.key} [{i + 1}]"] = render(q.expr)
+        for rule in result.rules:
+            if rule.expr is not None:
+                expressions[f"monitor {rule.name}"] = render(rule.expr)
+        with console.status("Checking PromQL with promtool (Docker)..."):
+            outcome = promtool.check(expressions)
+        validation["promtool"] = {"ran": outcome.ran, "reason": outcome.reason, "checked": outcome.checked, "errors": outcome.errors}
+    else:
+        validation["promtool"] = {"ran": False, "reason": "skipped (--no-promtool)"}
+
+    out.mkdir(parents=True, exist_ok=True)
+    perses_dir = out / "perses"
+    if (out / "plan.json").exists() and perses_dir.is_dir():  # our own earlier output: drop stale dashboards
+        for old in perses_dir.glob("*.json"):
+            old.unlink()
+    if not result.rules and (out / "check-rules.json").exists() and (out / "plan.json").exists():
+        (out / "check-rules.json").unlink()
+    for relative, content in result.artifacts.items():
+        target = out / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+    (out / "plan.json").write_bytes(core.render_plan_json(result, source, validation))
+
+    report.print_plan(console, result, out, validation)
+    console.print(f"Artifacts written to [bold]{out}[/bold]  ·  review them, then run `python -m openborder apply {out}`")
+    failed = bool(result.structure_errors) or bool(validation["promtool"].get("errors"))
+    if failed:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def apply(
+    plan_dir: Path = typer.Argument(Path("migration"), help="The folder written by `plan`."),
+    auto_approve: bool = typer.Option(False, "--auto-approve", "--yes", "-y", help="Import without asking for confirmation."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be imported and where; send nothing."),
+) -> None:
+    """Import a reviewed plan into Dash0. This is the only command that writes to Dash0."""
+    try:
+        loaded = load_plan(plan_dir)
+    except PlanError as e:
+        raise _fail(str(e))
+    settings = config.load_settings()
+    if "DASH0_AUTH_TOKEN" not in settings:
+        raise _fail("Missing DASH0_AUTH_TOKEN. Run `python -m openborder init`.")
+    try:
+        client = Dash0Client(settings["DASH0_AUTH_TOKEN"], settings["DASH0_API_URL"], settings["DASH0_DATASET"])
+    except Dash0Error as e:
+        raise _fail(str(e))
+
+    report.print_apply_summary(console, loaded, client.api_url, client.dataset)
+    if dry_run:
+        client.close()
+        console.print("\n[bold]Dry run:[/bold] nothing was sent.")
+        raise typer.Exit(code=0)
+    if not auto_approve:
+        console.print("\nDash0 will create these items, or overwrite them if they were imported before.")
+        try:
+            answer = typer.prompt("Type 'yes' to import", default="no", show_default=False)
+        except typer.Abort:
+            answer = "no"
+        if answer.strip().lower() != "yes":
+            client.close()
+            console.print("[yellow]Cancelled. Nothing was imported.[/yellow]")
+            raise typer.Exit(code=1)
+
+    results: dict = {"target": {"api_url": client.api_url, "dataset": client.dataset}, "dashboards": [], "check_rules": None}
+    failures = 0
+    console.print()
+    with client:
+        for d in loaded.dashboards:
+            try:
+                response = client.import_dashboard(d.body)
+                fallback = d.body["metadata"]["dash0Extensions"]["id"]
+                dash0_id = ((response.get("metadata") or {}).get("dash0Extensions") or {}).get("id") or fallback
+                console.print(f"[green]✓[/green] dashboard [bold]{d.title}[/bold]  [dim]{dash0_id}[/dim]")
+                results["dashboards"].append({"title": d.title, "artifact": d.artifact, "status": "imported", "id": dash0_id})
+            except Dash0Error as e:
+                failures += 1
+                console.print(f"[red]✗ dashboard {d.title}[/red]\n  {e}")
+                results["dashboards"].append({"title": d.title, "artifact": d.artifact, "status": "failed", "error": str(e)})
+        if loaded.rules:
+            try:
+                response = client.import_check_rules(loaded.rules)
+                created = response.get("created")
+                note = ""
+                if isinstance(created, int) and created < len(loaded.rules):
+                    note = f" ({created} newly created, {len(loaded.rules) - created} overwrote existing rules)"
+                console.print(f"[green]✓[/green] {len(loaded.rules)} check rule(s) imported{note}")
+                results["check_rules"] = {"status": "imported", "sent": len(loaded.rules), "created": created}
+            except Dash0Error as e:
+                failures += 1
+                console.print(f"[red]✗ check rules[/red]\n  {e}")
+                results["check_rules"] = {"status": "failed", "sent": len(loaded.rules), "error": str(e)}
+
+    (plan_dir / "apply.json").write_text(json.dumps(results, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
+    if failures:
+        console.print(
+            f"\n[red]Apply finished with {failures} failure(s).[/red] Items that succeeded are in Dash0. "
+            "Fix the cause and run `apply` again: every item has a stable ID, so Dash0 overwrites instead of duplicating."
+        )
+        raise typer.Exit(code=1)
+    console.print(f"\n[green]Apply complete[/green] in dataset '{client.dataset}'. Results are in {plan_dir / 'apply.json'}.")
+
+
+@app.command()
+def explain(
+    query: str | None = typer.Option(None, "--query", "-q", help="A Datadog metric query or formula to translate and trace."),
+    monitor: bool = typer.Option(False, "--monitor", help="Treat --query as a monitor query, e.g. 'avg(last_5m):avg:redis.mem.used{*} > 90'."),
+    var: list[str] = typer.Option(
+        [], "--var", help="Template variable for --query as NAME=TAGPREFIX; leave the prefix empty for a free-form one (--var scope= --var host=host)."
+    ),
+    find: str | None = typer.Option(None, "--find", "-f", help="Explain the panel or monitor of a plan whose title or key contains this text."),
+    plan_dir: Path = typer.Option(Path("migration"), "--plan", help="The plan folder to search with --find."),
+    as_json: bool = typer.Option(False, "--json", help="Print the explanation as JSON."),
+) -> None:
+    """Show how a query, panel or monitor was translated, rule by rule. Every step is a named rule; no LLM is involved."""
+    if (query is None) == (find is None):
+        raise _fail(
+            "Give exactly one of --query or --find.\n"
+            "  explain --query 'avg:redis.stats.keyspace_hits{*}'\n"
+            "  explain --find evictions   (searches ./migration, or --plan DIR)",
+            code=2,
+        )
+    try:
+        if query is not None and monitor:
+            explanations = [explainer.explain_monitor_query(query)]
+        elif query is not None:
+            variables: dict[str, str | None] = {}
+            for item in var:
+                var_name, separator, prefix = item.partition("=")
+                if not separator or not var_name:
+                    raise _fail(f"--var must look like NAME=TAGPREFIX, got {item!r}.", code=2)
+                variables[var_name] = prefix or None
+            explanations = [explainer.explain_query(query, variables)]
+        else:
+            plan_path = plan_dir / "plan.json"
+            if not plan_path.is_file():
+                raise _fail(f"{plan_dir} has no plan.json. Run `python -m openborder plan --out {plan_dir}` first.")
+            try:
+                document = json.loads(plan_path.read_text(encoding="utf-8"))
+            except ValueError as e:
+                raise _fail(f"{plan_path} is not valid JSON: {e}")
+            explanations = explainer.find_in_plan(document, find)
+    except explainer.ExplainError as e:
+        raise _fail(str(e))
+    if as_json:
+        typer.echo(json.dumps({"explanations": explanations}, indent=2, ensure_ascii=False))
+        return
+    for explanation in explanations:
+        report.print_explanation(console, explanation)

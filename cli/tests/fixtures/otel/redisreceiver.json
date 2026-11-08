@@ -1,0 +1,163 @@
+{
+  "collector": "otelcol-contrib 0.165.0",
+  "metrics": {
+    "redis.clients.blocked": {
+      "attributes": {},
+      "monotonic": false,
+      "type": "Sum"
+    },
+    "redis.clients.connected": {
+      "attributes": {},
+      "monotonic": false,
+      "type": "Sum"
+    },
+    "redis.clients.max_input_buffer": {
+      "attributes": {},
+      "type": "Gauge"
+    },
+    "redis.clients.max_output_buffer": {
+      "attributes": {},
+      "type": "Gauge"
+    },
+    "redis.commands": {
+      "attributes": {},
+      "type": "Gauge"
+    },
+    "redis.commands.processed": {
+      "attributes": {},
+      "monotonic": true,
+      "type": "Sum"
+    },
+    "redis.connections.received": {
+      "attributes": {},
+      "monotonic": true,
+      "type": "Sum"
+    },
+    "redis.connections.rejected": {
+      "attributes": {},
+      "monotonic": true,
+      "type": "Sum"
+    },
+    "redis.cpu.time": {
+      "attributes": {
+        "state": [
+          "sys",
+          "sys_children",
+          "sys_main_thread",
+          "user",
+          "user_children",
+          "user_main_thread"
+        ]
+      },
+      "monotonic": true,
+      "type": "Sum"
+    },
+    "redis.db.avg_ttl": {
+      "attributes": {
+        "db": [
+          "0"
+        ]
+      },
+      "type": "Gauge"
+    },
+    "redis.db.expires": {
+      "attributes": {
+        "db": [
+          "0"
+        ]
+      },
+      "type": "Gauge"
+    },
+    "redis.db.keys": {
+      "attributes": {
+        "db": [
+          "0"
+        ]
+      },
+      "type": "Gauge"
+    },
+    "redis.keys.evicted": {
+      "attributes": {},
+      "monotonic": true,
+      "type": "Sum"
+    },
+    "redis.keys.expired": {
+      "attributes": {},
+      "monotonic": true,
+      "type": "Sum"
+    },
+    "redis.keyspace.hits": {
+      "attributes": {},
+      "monotonic": true,
+      "type": "Sum"
+    },
+    "redis.keyspace.misses": {
+      "attributes": {},
+      "monotonic": true,
+      "type": "Sum"
+    },
+    "redis.latest_fork": {
+      "attributes": {},
+      "type": "Gauge"
+    },
+    "redis.maxmemory": {
+      "attributes": {},
+      "type": "Gauge"
+    },
+    "redis.memory.fragmentation_ratio": {
+      "attributes": {},
+      "type": "Gauge"
+    },
+    "redis.memory.lua": {
+      "attributes": {},
+      "type": "Gauge"
+    },
+    "redis.memory.peak": {
+      "attributes": {},
+      "type": "Gauge"
+    },
+    "redis.memory.rss": {
+      "attributes": {},
+      "type": "Gauge"
+    },
+    "redis.memory.used": {
+      "attributes": {},
+      "type": "Gauge"
+    },
+    "redis.net.input": {
+      "attributes": {},
+      "monotonic": true,
+      "type": "Sum"
+    },
+    "redis.net.output": {
+      "attributes": {},
+      "monotonic": true,
+      "type": "Sum"
+    },
+    "redis.rdb.changes_since_last_save": {
+      "attributes": {},
+      "monotonic": false,
+      "type": "Sum"
+    },
+    "redis.replication.backlog_first_byte_offset": {
+      "attributes": {},
+      "type": "Gauge"
+    },
+    "redis.replication.offset": {
+      "attributes": {},
+      "type": "Gauge"
+    },
+    "redis.slaves.connected": {
+      "attributes": {},
+      "monotonic": false,
+      "type": "Sum"
+    },
+    "redis.uptime": {
+      "attributes": {},
+      "monotonic": true,
+      "type": "Sum"
+    }
+  },
+  "note": "Captured with demo/otel-collector.local.yaml against redis:7-alpine; see demo/README.md.",
+  "receiver": "redis (redis.maxmemory enabled)"
+}

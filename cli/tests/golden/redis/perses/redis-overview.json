@@ -1,0 +1,1514 @@
+{
+  "kind": "Dashboard",
+  "metadata": {
+    "dash0Extensions": {
+      "id": "e5f39f83-a8e4-5492-ae31-1b4e400dc0be"
+    },
+    "name": "redis-overview"
+  },
+  "spec": {
+    "display": {
+      "description": "This dashboard provides a high-level overview of key Redis metrics to help you monitor your Redis primary's performance and manage your Redis instance.\n\nFor more information, see:\n\n- Our [official Redis documentation](https://docs.datadoghq.com/integrations/redisdb/)\n\nOr our 3-part series blog post:\n\n- Part 1: [How to monitor Redis performance metrics](https://www.datadoghq.com/blog/how-to-monitor-redis-performance-metrics/) \n- Part 2: [Collecting Redis metrics](https://www.datadoghq.com/blog/how-to-collect-redis-metrics/)\n- Part 3: [Monitoring Redis with Datadog](https://www.datadoghq.com/blog/monitor-redis-using-datadog/) (cloned)",
+      "name": "Redis - Overview"
+    },
+    "duration": "1h",
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-01"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-02"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 12,
+              "y": 0
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "collapse": {
+              "open": true
+            },
+            "title": "Overview"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-03"
+              },
+              "height": 3,
+              "width": 12,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-04"
+              },
+              "height": 3,
+              "width": 12,
+              "x": 12,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-05"
+              },
+              "height": 3,
+              "width": 12,
+              "x": 0,
+              "y": 3
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-06"
+              },
+              "height": 3,
+              "width": 12,
+              "x": 12,
+              "y": 3
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-07"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 6
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-08"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 12,
+              "y": 6
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "collapse": {
+              "open": true
+            },
+            "title": "Performance Metrics"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-09"
+              },
+              "height": 12,
+              "width": 16,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-10"
+              },
+              "height": 12,
+              "width": 8,
+              "x": 16,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-11"
+              },
+              "height": 6,
+              "width": 16,
+              "x": 0,
+              "y": 12
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-12"
+              },
+              "height": 6,
+              "width": 8,
+              "x": 16,
+              "y": 12
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-13"
+              },
+              "height": 6,
+              "width": 24,
+              "x": 0,
+              "y": 18
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-14"
+              },
+              "height": 6,
+              "width": 24,
+              "x": 0,
+              "y": 24
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-15"
+              },
+              "height": 6,
+              "width": 8,
+              "x": 0,
+              "y": 30
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-16"
+              },
+              "height": 6,
+              "width": 16,
+              "x": 8,
+              "y": 30
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "collapse": {
+              "open": true
+            },
+            "title": "Memory Metrics"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-17"
+              },
+              "height": 12,
+              "width": 16,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-18"
+              },
+              "height": 12,
+              "width": 8,
+              "x": 16,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-19"
+              },
+              "height": 6,
+              "width": 24,
+              "x": 0,
+              "y": 12
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-20"
+              },
+              "height": 6,
+              "width": 24,
+              "x": 0,
+              "y": 18
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-21"
+              },
+              "height": 6,
+              "width": 8,
+              "x": 0,
+              "y": 24
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-22"
+              },
+              "height": 6,
+              "width": 16,
+              "x": 8,
+              "y": 24
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "collapse": {
+              "open": true
+            },
+            "title": "Base Activity Metrics"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-23"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-24"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 12,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-25"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 18,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-26"
+              },
+              "height": 6,
+              "width": 10,
+              "x": 0,
+              "y": 6
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-27"
+              },
+              "height": 6,
+              "width": 10,
+              "x": 10,
+              "y": 6
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-28"
+              },
+              "height": 6,
+              "width": 4,
+              "x": 20,
+              "y": 6
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "collapse": {
+              "open": true
+            },
+            "title": "Key Metrics"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-29"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-30"
+              },
+              "height": 6,
+              "width": 4,
+              "x": 12,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-31"
+              },
+              "height": 6,
+              "width": 8,
+              "x": 16,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-32"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 6
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-33"
+              },
+              "height": 6,
+              "width": 4,
+              "x": 12,
+              "y": 6
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-34"
+              },
+              "height": 6,
+              "width": 8,
+              "x": 16,
+              "y": 6
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "collapse": {
+              "open": true
+            },
+            "title": "Logs"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-35"
+              },
+              "height": 24,
+              "width": 12,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/panel-36"
+              },
+              "height": 24,
+              "width": 12,
+              "x": 12,
+              "y": 0
+            }
+          ]
+        }
+      }
+    ],
+    "panels": {
+      "panel-01": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Note"
+          },
+          "plugin": {
+            "kind": "Markdown",
+            "spec": {
+              "text": "This dashboard shows latency information and slow query counts that summarize your Redis master's performance, as well as memory metrics to help you manage your Redis instance.\n\n##### [Official Datadog Redis documentation ↗](https://docs.datadoghq.com/integrations/redisdb/)"
+            }
+          }
+        }
+      },
+      "panel-02": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Note"
+          },
+          "plugin": {
+            "kind": "Markdown",
+            "spec": {
+              "text": "**Our 3-part blog series**\n\n\n[How to monitor Redis performance metrics&nbsp;↗](https://www.datadoghq.com/blog/how-to-monitor-redis-performance-metrics/)\n\n[Collecting Redis metrics&nbsp;↗](https://www.datadoghq.com/blog/how-to-collect-redis-metrics/)\n\n[Monitoring Redis with Datadog&nbsp;↗](https://www.datadoghq.com/blog/monitor-redis-using-datadog/)"
+            }
+          }
+        }
+      },
+      "panel-03": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ Datadog's agent reports a per-second rate computed between check runs; PromQL rate() over the window is the same quantity but is smoothed over a different window\n≈ Datadog's agent reports a per-second rate computed between check runs; PromQL rate() over the window is the same quantity but is smoothed over a different window\n≈ not migrated: conditional colour formats\n~ Datadog aggregates each query over the time range first and then evaluates the formula (a ratio of averages); the migrated panel evaluates the formula at every step and then averages (an average of ratios), so the value can differ slightly\nDatadog query: avg:redis.stats.keyspace_hits{$scope,$host}\nDatadog query: avg:redis.stats.keyspace_misses{$scope,$host}\nDatadog query: (query1 / (query1 + query2)) * 100",
+            "name": "Hit rate"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "mean",
+              "format": {
+                "decimalPlaces": 0,
+                "unit": "percent"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"^($host)$\"}[$__rate_interval])) / (avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"^($host)$\"}[$__rate_interval])) + avg(rate({otel_metric_name=\"redis.keyspace.misses\", host_name=~\"^($host)$\"}[$__rate_interval]))) * 100"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-04": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ not migrated: conditional colour formats\n≈ Datadog aggregates over the time range; the migrated panel applies the same calculation to the returned series, so sampling can differ slightly\nDatadog query: sum:redis.clients.blocked{$scope,$host}",
+            "name": "Blocked clients"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "max",
+              "format": {
+                "decimalPlaces": 0,
+                "unit": "decimal"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.clients.blocked\", host_name=~\"^($host)$\"})"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-05": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ not migrated: conditional colour formats\n≈ Datadog aggregates over the time range; the migrated panel applies the same calculation to the returned series, so sampling can differ slightly\nDatadog query: sum:redis.keys{$scope,$host}",
+            "name": "Redis keyspace"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "max",
+              "format": {
+                "decimalPlaces": 2,
+                "unit": "decimal"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.db.keys\", host_name=~\"^($host)$\"})"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-06": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ not migrated: conditional colour formats\n≈ Datadog aggregates over the time range; the migrated panel applies the same calculation to the returned series, so sampling can differ slightly\nDatadog query: sum:redis.rdb.changes_since_last{$scope,$host}",
+            "name": "Unsaved changes"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "mean",
+              "format": {
+                "decimalPlaces": 2,
+                "unit": "decimal"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.rdb.changes_since_last_save\", host_name=~\"^($host)$\"})"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-07": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "~ 'redis.replication.master_link_down_since_seconds' has no known OpenTelemetry equivalent; it is queried under its Datadog name and will probably show no data until it is mapped\n≈ not migrated: conditional colour formats\n≈ Datadog aggregates over the time range; the migrated panel applies the same calculation to the returned series, so sampling can differ slightly\nDatadog query: sum:redis.replication.master_link_down_since_seconds{$scope,$host}",
+            "name": "Primary link down"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "mean",
+              "format": {
+                "decimalPlaces": 0,
+                "unit": "seconds"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.replication.master_link_down_since_seconds\", host_name=~\"^($host)$\"})"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-08": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Note"
+          },
+          "plugin": {
+            "kind": "Markdown",
+            "spec": {
+              "text": "This metric is only available when the connection between the primary and its replica has been lost. Ideally, this value should never exceed zero—the primary and the replica should be in constant communication to ensure the replica is not serving stale data."
+            }
+          }
+        }
+      },
+      "panel-09": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "~ 'redis.info.latency_ms' has no known OpenTelemetry equivalent; it is queried under its Datadog name and will probably show no data until it is mapped\nDatadog query: avg:redis.info.latency_ms{$scope,$host} by {host}",
+            "name": "Latency by Host"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "position": "bottom",
+                "showLegend": true
+              },
+              "visual": {
+                "display": "line"
+              },
+              "yAxis": {
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg by (host_name) ({otel_metric_name=\"redis.info.latency_ms\", host_name=~\"^($host)$\"})",
+                    "seriesNameFormat": "{{host_name}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-10": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Note"
+          },
+          "plugin": {
+            "kind": "Markdown",
+            "spec": {
+              "text": "Latency measures the **time between a client request and the server response**, and monitoring it enables you to detect changes in Redis performance. The single-threaded nature of Redis means that a long response time for one request increases the latency for all subsequent requests, leading to serious bottlenecks."
+            }
+          }
+        }
+      },
+      "panel-11": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "~ 'redis.slowlog.micros.95percentile' has no known OpenTelemetry equivalent; it is queried under its Datadog name and will probably show no data until it is mapped\n~ tag 'name' has no mapping; it is used as label 'name', which may not exist on the OpenTelemetry series\n~ tag 'command' has no mapping; it is used as label 'command', which may not exist on the OpenTelemetry series\n~ Datadog picks the top series once over the whole time range; PromQL re-ranks at every step over a trailing window, so the set of series shown can differ\nDatadog query: sum:redis.slowlog.micros.95percentile{$scope,$host} by {name,command}\nDatadog query: top(query1 / 1000, 10, 'mean', 'desc')",
+            "name": "Slowlog duration"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "position": "bottom",
+                "showLegend": true
+              },
+              "visual": {
+                "areaOpacity": 0.55,
+                "display": "line"
+              },
+              "yAxis": {
+                "format": {
+                  "unit": "milliseconds"
+                },
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "topk(10, avg_over_time((sum by (name, command) ({otel_metric_name=\"redis.slowlog.micros.95percentile\", host_name=~\"^($host)$\"}) / 1000)[$__range:]))"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-12": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Slowlog query rates"
+          },
+          "plugin": {
+            "kind": "Markdown",
+            "spec": {
+              "text": "**Not migrated: Slowlog query rates**\n\nDatadog widget type `toplist`. Dash0 has no ranked bar/table panel we can target yet; recreate it as a table or bar chart\n\nOriginal query:\n- `sum:redis.slowlog.micros.count{$host,$scope} by {command,name}`\n\nThe full original definition is kept in `plan.json`."
+            }
+          }
+        }
+      },
+      "panel-13": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "~ 'redis.replication.delay' has no known OpenTelemetry equivalent; it is queried under its Datadog name and will probably show no data until it is mapped\nDatadog query: avg:redis.replication.delay{$host,$scope}",
+            "name": "Average replication delay (offset)"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "showLegend": false
+              },
+              "visual": {
+                "display": "line"
+              },
+              "yAxis": {
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg({otel_metric_name=\"redis.replication.delay\", host_name=~\"^($host)$\"})",
+                    "seriesNameFormat": "Offsets"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-14": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ Datadog's agent reports a per-second rate computed between check runs; PromQL rate() over the window is the same quantity but is smoothed over a different window\n≈ Datadog's agent reports a per-second rate computed between check runs; PromQL rate() over the window is the same quantity but is smoothed over a different window\nDatadog query: avg:redis.cpu.sys{$host,$scope}\nDatadog query: avg:redis.cpu.user{$host,$scope}",
+            "name": "Average CPU usage"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "position": "bottom",
+                "showLegend": true
+              },
+              "visual": {
+                "display": "line"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg(rate({otel_metric_name=\"redis.cpu.time\", state=\"sys\", host_name=~\"^($host)$\"}[$__rate_interval]))",
+                    "seriesNameFormat": "System"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg(rate({otel_metric_name=\"redis.cpu.time\", state=\"user\", host_name=~\"^($host)$\"}[$__rate_interval]))",
+                    "seriesNameFormat": "User"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-15": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ Datadog's agent reports a per-second rate computed between check runs; PromQL rate() over the window is the same quantity but is smoothed over a different window\n≈ Datadog's agent reports a per-second rate computed between check runs; PromQL rate() over the window is the same quantity but is smoothed over a different window\n≈ not migrated: conditional colour formats\n~ Datadog aggregates each query over the time range first and then evaluates the formula (a ratio of averages); the migrated panel evaluates the formula at every step and then averages (an average of ratios), so the value can differ slightly\nDatadog query: avg:redis.stats.keyspace_hits{$scope,$host}\nDatadog query: avg:redis.stats.keyspace_misses{$scope,$host}\nDatadog query: (query1 / (query1 + query2)) * 100",
+            "name": "Cache hit rate"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "mean",
+              "format": {
+                "decimalPlaces": 2,
+                "unit": "decimal"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"^($host)$\"}[$__rate_interval])) / (avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"^($host)$\"}[$__rate_interval])) + avg(rate({otel_metric_name=\"redis.keyspace.misses\", host_name=~\"^($host)$\"}[$__rate_interval]))) * 100"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-16": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ Datadog's agent reports a per-second rate computed between check runs; PromQL rate() over the window is the same quantity but is smoothed over a different window\n≈ Datadog's agent reports a per-second rate computed between check runs; PromQL rate() over the window is the same quantity but is smoothed over a different window\n≈ not migrated: 2 marker line(s)\nDatadog query: avg:redis.stats.keyspace_hits{$scope,$host}\nDatadog query: avg:redis.stats.keyspace_misses{$scope,$host}\nDatadog query: (query1 / (query1 + query2)) * 100",
+            "name": "Cache hit rate"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "showLegend": false
+              },
+              "visual": {
+                "display": "line"
+              },
+              "yAxis": {
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"^($host)$\"}[$__rate_interval])) / (avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"^($host)$\"}[$__rate_interval])) + avg(rate({otel_metric_name=\"redis.keyspace.misses\", host_name=~\"^($host)$\"}[$__rate_interval]))) * 100",
+                    "seriesNameFormat": "hit %"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-17": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ not migrated: 2 marker line(s)\nDatadog query: avg:redis.mem.used{$scope,$host} by {host}\nDatadog query: max:redis.mem.maxmemory{$scope,$host} by {host}\nDatadog query: (query1 / query2) * 100",
+            "name": "Percent Used Memory by Host"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "position": "bottom",
+                "showLegend": true
+              },
+              "visual": {
+                "display": "line"
+              },
+              "yAxis": {
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg by (host_name) ({otel_metric_name=\"redis.memory.used\", host_name=~\"^($host)$\"}) / max by (host_name) ({otel_metric_name=\"redis.maxmemory\", host_name=~\"^($host)$\"}) * 100",
+                    "seriesNameFormat": "% memory used"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-18": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Note"
+          },
+          "plugin": {
+            "kind": "Markdown",
+            "spec": {
+              "text": "Memory usage is a crucial performance factor. If `used_memory > total available system memory`, the OS will begin swapping old/unused sections of memory and writing them to disk. Writing or reading from disk is up to 100,000 times slower than writing or reading from memory (0.1 µs for memory vs. 10 ms for disk)."
+            }
+          }
+        }
+      },
+      "panel-19": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "~ per_minute() on a series that is not already a rate was translated to a per-second PromQL rate() (of the cumulative value); Datadog's exact normalisation for this series type is not reproduced\nDatadog query: sum:redis.keys.evicted{$scope,$host} by {host}\nDatadog query: per_minute(query2)",
+            "name": "Evictions"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "showLegend": false
+              },
+              "visual": {
+                "display": "bar"
+              },
+              "yAxis": {
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "60 * sum by (host_name) (rate({otel_metric_name=\"redis.keys.evicted\", host_name=~\"^($host)$\"}[$__rate_interval]))",
+                    "seriesNameFormat": "Keys evicted due to the maxmemory limit"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-20": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Total allocated memory"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "position": "bottom",
+                "showLegend": true
+              },
+              "visual": {
+                "display": "line"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.memory.rss\", host_name=~\"^($host)$\"})"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-21": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ not migrated: conditional colour formats\n≈ Datadog aggregates over the time range; the migrated panel applies the same calculation to the returned series, so sampling can differ slightly\nDatadog query: avg:redis.mem.fragmentation_ratio{$scope,$host}",
+            "name": "Fragmentation ratio"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "mean",
+              "format": {
+                "decimalPlaces": 2,
+                "unit": "decimal"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg({otel_metric_name=\"redis.memory.fragmentation_ratio\", host_name=~\"^($host)$\"})"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-22": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ not migrated: 1 marker line(s)\nDatadog query: avg:redis.mem.fragmentation_ratio{$scope,$host}",
+            "name": "Fragmentation ratio"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "showLegend": false
+              },
+              "visual": {
+                "display": "line"
+              },
+              "yAxis": {
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg({otel_metric_name=\"redis.memory.fragmentation_ratio\", host_name=~\"^($host)$\"})",
+                    "seriesNameFormat": "used_memory_rss / used_memory"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-23": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Connected clients"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "position": "bottom",
+                "showLegend": true
+              },
+              "visual": {
+                "display": "line"
+              },
+              "yAxis": {
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.clients.connected\", host_name=~\"^($host)$\"})",
+                    "seriesNameFormat": "Connected clients"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-24": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Note"
+          },
+          "plugin": {
+            "kind": "Markdown",
+            "spec": {
+              "text": "Redis has 10,000 client connections available by default, but you can adjust the maximum number of connections with the `maxclient` directive in redis.conf. New connection attempts will be refused if your Redis instance is currently at its maximum number of connections."
+            }
+          }
+        }
+      },
+      "panel-25": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Blocked clients"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "position": "bottom",
+                "showLegend": true
+              },
+              "visual": {
+                "display": "line"
+              },
+              "yAxis": {
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.clients.blocked\", host_name=~\"^($host)$\"})",
+                    "seriesNameFormat": "Connections waiting on a blocking call"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-26": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Connected replicas"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "showLegend": false
+              },
+              "visual": {
+                "display": "line"
+              },
+              "yAxis": {
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.slaves.connected\", host_name=~\"^($host)$\"})",
+                    "seriesNameFormat": "Connected replicas"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-27": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "~ diff() is the difference to the previous point; translated as the value minus the value one interval ($__interval) earlier, which can differ at the edges of the window\nDatadog query: sum:redis.net.rejected{$scope,$host}\nDatadog query: diff(query1)",
+            "name": "Rejected connections"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "showLegend": false
+              },
+              "visual": {
+                "display": "line"
+              },
+              "yAxis": {
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.connections.rejected\", host_name=~\"^($host)$\"}) - sum({otel_metric_name=\"redis.connections.rejected\", host_name=~\"^($host)$\"} offset $__interval)",
+                    "seriesNameFormat": "Rejected connections"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-28": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ Datadog's agent reports a per-second rate computed between check runs; PromQL rate() over the window is the same quantity but is smoothed over a different window\n≈ Datadog aggregates over the time range; the migrated panel applies the same calculation to the returned series, so sampling can differ slightly\nDatadog query: sum:redis.net.commands{$scope,$host}",
+            "name": "Commands per second"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "mean",
+              "format": {
+                "decimalPlaces": 2,
+                "unit": "decimal"
+              },
+              "sparkline": {}
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum(rate({otel_metric_name=\"redis.commands.processed\", host_name=~\"^($host)$\"}[$__rate_interval]))"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-29": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Total keys"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "position": "bottom",
+                "showLegend": true
+              },
+              "visual": {
+                "areaOpacity": 0.55,
+                "display": "line"
+              },
+              "yAxis": {
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.db.keys\", host_name=~\"^($host)$\"})",
+                    "seriesNameFormat": "Total keys"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-30": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ Datadog aggregates over the time range; the migrated panel applies the same calculation to the returned series, so sampling can differ slightly\nDatadog query: sum:redis.keys{$scope,$host}",
+            "name": "Current total"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "last",
+              "format": {
+                "decimalPlaces": 2,
+                "unit": "decimal"
+              },
+              "sparkline": {}
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.db.keys\", host_name=~\"^($host)$\"})"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-31": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Note"
+          },
+          "plugin": {
+            "kind": "Markdown",
+            "spec": {
+              "text": "Monitoring key length helps surface unexpectedly large or growing data structures (lists, sets, hashes, sorted sets), which can drive memory usage and cause performance issues. \n\nEnable in Agent's `redisdb.yaml` with the `keys` option."
+            }
+          }
+        }
+      },
+      "panel-32": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Expired keys"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "position": "bottom",
+                "showLegend": true
+              },
+              "visual": {
+                "areaOpacity": 0.55,
+                "display": "line"
+              },
+              "yAxis": {
+                "min": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.keys.expired\", host_name=~\"^($host)$\"})",
+                    "seriesNameFormat": "Expired keys"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-33": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "description": "≈ Datadog aggregates over the time range; the migrated panel applies the same calculation to the returned series, so sampling can differ slightly\nDatadog query: sum:redis.expires{$scope,$host}",
+            "name": "Keys with expiration"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "last",
+              "format": {
+                "decimalPlaces": 2,
+                "unit": "decimal"
+              },
+              "sparkline": {}
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum({otel_metric_name=\"redis.db.expires\", host_name=~\"^($host)$\"})"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "panel-34": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Key length distribution"
+          },
+          "plugin": {
+            "kind": "Markdown",
+            "spec": {
+              "text": "**Not migrated: Key length distribution**\n\nDatadog widget type `distribution`. distribution/heatmap widgets need Datadog distribution metrics, which have no translation yet\n\nOriginal query:\n- `sum:redis.key.length{$scope, $host, $key} by {key}`\n\nThe full original definition is kept in `plan.json`."
+            }
+          }
+        }
+      },
+      "panel-35": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Error Logs"
+          },
+          "plugin": {
+            "kind": "Markdown",
+            "spec": {
+              "text": "**Not migrated: Error Logs**\n\nDatadog widget type `list_stream`. log and event streams are not metric queries; Dash0 shows logs in its own views\n\nOriginal query:\n- `source:redis $scope $host status:error`\n\nThe full original definition is kept in `plan.json`."
+            }
+          }
+        }
+      },
+      "panel-36": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "All Logs"
+          },
+          "plugin": {
+            "kind": "Markdown",
+            "spec": {
+              "text": "**Not migrated: All Logs**\n\nDatadog widget type `list_stream`. log and event streams are not metric queries; Dash0 shows logs in its own views\n\nOriginal query:\n- `source:redis $scope $host`\n\nThe full original definition is kept in `plan.json`."
+            }
+          }
+        }
+      }
+    },
+    "variables": [
+      {
+        "kind": "ListVariable",
+        "spec": {
+          "allowAllValue": true,
+          "allowMultiple": true,
+          "customAllValue": ".*",
+          "defaultValue": "$__all",
+          "display": {
+            "name": "host"
+          },
+          "name": "host",
+          "plugin": {
+            "kind": "PrometheusLabelValuesVariable",
+            "spec": {
+              "labelName": "host_name"
+            }
+          }
+        }
+      },
+      {
+        "kind": "ListVariable",
+        "spec": {
+          "allowAllValue": true,
+          "allowMultiple": true,
+          "customAllValue": ".*",
+          "defaultValue": "$__all",
+          "display": {
+            "name": "key"
+          },
+          "name": "key",
+          "plugin": {
+            "kind": "PrometheusLabelValuesVariable",
+            "spec": {
+              "labelName": "key"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
