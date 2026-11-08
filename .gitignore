@@ -6,6 +6,11 @@ CONTRIBUTING.md
 ### Backend - Python
 venv/
 __pycache__/
+*.pyc
+.pytest_cache/
+
+### OpenBorder output: written by `plan` / `apply`
+migration/
 
 #### Editor directories and files
 .vscode/*
