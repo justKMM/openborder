@@ -16,6 +16,9 @@ otel_receiver: redisreceiver
 # Datadog tag -> label on the OTel series, as addressed in Dash0 PromQL (dots become underscores).
 # `host` assumes the collector adds host.name (e.g. resourcedetection processor).
 # `server_address` / `server_port` are resource attributes that are disabled by default in redisreceiver.
+#
+# Caveat for `redis_db`: Datadog's value is `db0`, the collector's `db` attribute value is `0`, so a filter
+# on a specific database will not match until the value is adapted. The Redis dashboard does not filter on it.
 tags:
   host: host_name
   redis_host: server_address
@@ -73,6 +76,9 @@ metrics:
     transform: rate
 
   # --- no OTel counterpart in redisreceiver --------------------------------------------------
+  # Checked against the real output of collector 0.165.0 (tests/fixtures/otel/redisreceiver.json): none of these
+  # quantities is emitted. redis.replication.offset exists but is the server's own offset, NOT Datadog's
+  # replication.delay (the master/replica gap), so it is deliberately not mapped.
   redis.info.latency_ms:
     otel: null
   redis.slowlog.micros.95percentile:

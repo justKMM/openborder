@@ -1,0 +1,32 @@
+# Local-only collector config: prints the Redis metrics to the collector log and sends NOTHING anywhere.
+# Use it to see exactly which metric names and attributes redisreceiver produces:
+#   OTEL_CONFIG=otel-collector.local.yaml docker compose up -d && docker compose logs otel-collector
+receivers:
+  redis:
+    endpoint: redis:6379
+    collection_interval: 10s
+    metrics:
+      redis.maxmemory:
+        enabled: true # optional (off by default); the "High memory consumption" monitor needs it
+
+processors:
+  resource:
+    attributes:
+      - key: host.name
+        value: ${env:DEMO_HOST_NAME}
+        action: upsert
+      - key: service.name
+        value: redis
+        action: upsert
+  batch: {}
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    metrics:
+      receivers: [redis]
+      processors: [resource, batch]
+      exporters: [debug]

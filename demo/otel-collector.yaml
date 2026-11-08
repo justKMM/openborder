@@ -1,0 +1,37 @@
+# Collector config that sends the Redis metrics to Dash0.
+# Needs DASH0_OTLP_ENDPOINT and DASH0_AUTH_TOKEN (see .env.example).
+receivers:
+  redis:
+    endpoint: redis:6379
+    collection_interval: 10s
+    metrics:
+      redis.maxmemory:
+        enabled: true # optional (off by default); the "High memory consumption" monitor needs it
+
+processors:
+  # host.name becomes the `host_name` label the migrated dashboard filters on (see the tag mapping in
+  # cli/openborder/mappings/datadog/redis.yaml). In a real deployment use the resourcedetection
+  # processor instead of a fixed name.
+  resource:
+    attributes:
+      - key: host.name
+        value: ${env:DEMO_HOST_NAME}
+        action: upsert
+      - key: service.name
+        value: redis
+        action: upsert
+  batch: {}
+
+exporters:
+  otlp:
+    endpoint: ${env:DASH0_OTLP_ENDPOINT}
+    headers:
+      Authorization: Bearer ${env:DASH0_AUTH_TOKEN}
+      Dash0-Dataset: ${env:DASH0_DATASET}
+
+service:
+  pipelines:
+    metrics:
+      receivers: [redis]
+      processors: [resource, batch]
+      exporters: [otlp]
