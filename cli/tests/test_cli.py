@@ -14,13 +14,6 @@ def test_version():
     assert __version__ in result.output
 
 
-def test_unimplemented_commands_fail_loudly():
-    for command in ["explain"]:
-        result = runner.invoke(app, [command])
-        assert result.exit_code == 1
-        assert "not implemented" in result.output
-
-
 def test_plan_and_discover_without_credentials_explain_what_to_do():
     for command in (["plan"], ["discover"]):
         result = runner.invoke(app, command)

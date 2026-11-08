@@ -13,7 +13,6 @@ from openborder.ir import (
     Selector,
     Subquery,
     Tier,
-    TraceStep,
     worst,
 )
 from openborder.mappings import Mapping

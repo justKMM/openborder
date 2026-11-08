@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.table import Table
 
 from openborder import __version__, config, core, promtool, report
+from openborder import explain as explainer
 from openborder.apply import PlanError, load_plan
 from openborder.dash0_client import Dash0Client, Dash0Error
 from openborder.sources.datadog.client import DatadogClient, DatadogError
@@ -20,11 +21,6 @@ app = typer.Typer(
 config_app = typer.Typer(help="View or change stored credentials and settings.", no_args_is_help=True)
 app.add_typer(config_app, name="config")
 console = Console()
-
-
-def _not_implemented(command: str) -> None:
-    console.print(f"[yellow]`{command}` is not implemented yet.[/yellow]")
-    raise typer.Exit(code=1)
 
 
 @app.command()
@@ -95,6 +91,7 @@ def discover(
     tag: str | None = typer.Option(
         None, "--tag", "-t", help="Only monitors with this tag, e.g. integration:redisdb. Dashboards aren't tagged."
     ),
+    as_json: bool = typer.Option(False, "--json", help="Print the result as JSON instead of tables."),
 ) -> None:
     """List dashboards and monitors in the source Datadog org (read-only)."""
     settings = config.load_settings()
@@ -110,12 +107,23 @@ def discover(
     except DatadogError as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(code=1)
-    report.print_discovery(
-        console,
-        report.filter_by_name(dashboards, "title", name),
-        report.filter_by_name(monitors, "name", name),
-        site,
-    )
+    dashboards = report.filter_by_name(dashboards, "title", name)
+    monitors = report.filter_by_name(monitors, "name", name)
+    if as_json:
+        document = {
+            "site": site,
+            "dashboards": [
+                {k: d.get(k) for k in ("id", "title", "description", "layout_type", "modified_at")}
+                for d in sorted(dashboards, key=lambda d: (str(d.get("title", "")).lower(), str(d.get("id"))))
+            ],
+            "monitors": [
+                {"id": m.get("id"), "name": m.get("name"), "type": m.get("type"), "tags": m.get("tags") or []}
+                for m in sorted(monitors, key=lambda m: (str(m.get("name", "")).lower(), m.get("id", 0)))
+            ],
+        }
+        typer.echo(json.dumps(document, indent=2, ensure_ascii=False))
+        return
+    report.print_discovery(console, dashboards, monitors, site)
 
 
 def _fail(message: str, code: int = 1) -> typer.Exit:
@@ -295,6 +303,48 @@ def apply(
 
 
 @app.command()
-def explain() -> None:
-    """Show the rule-by-rule trace for one query, widget, or monitor."""
-    _not_implemented("explain")
+def explain(
+    query: str | None = typer.Option(None, "--query", "-q", help="A Datadog metric query or formula to translate and trace."),
+    monitor: bool = typer.Option(False, "--monitor", help="Treat --query as a monitor query, e.g. 'avg(last_5m):avg:redis.mem.used{*} > 90'."),
+    var: list[str] = typer.Option(
+        [], "--var", help="Template variable for --query as NAME=TAGPREFIX; leave the prefix empty for a free-form one (--var scope= --var host=host)."
+    ),
+    find: str | None = typer.Option(None, "--find", "-f", help="Explain the panel or monitor of a plan whose title or key contains this text."),
+    plan_dir: Path = typer.Option(Path("migration"), "--plan", help="The plan folder to search with --find."),
+    as_json: bool = typer.Option(False, "--json", help="Print the explanation as JSON."),
+) -> None:
+    """Show how a query, panel or monitor was translated, rule by rule. Every step is a named rule; no LLM is involved."""
+    if (query is None) == (find is None):
+        raise _fail(
+            "Give exactly one of --query or --find.\n"
+            "  explain --query 'avg:redis.stats.keyspace_hits{*}'\n"
+            "  explain --find evictions   (searches ./migration, or --plan DIR)",
+            code=2,
+        )
+    try:
+        if query is not None and monitor:
+            explanations = [explainer.explain_monitor_query(query)]
+        elif query is not None:
+            variables: dict[str, str | None] = {}
+            for item in var:
+                var_name, separator, prefix = item.partition("=")
+                if not separator or not var_name:
+                    raise _fail(f"--var must look like NAME=TAGPREFIX, got {item!r}.", code=2)
+                variables[var_name] = prefix or None
+            explanations = [explainer.explain_query(query, variables)]
+        else:
+            plan_path = plan_dir / "plan.json"
+            if not plan_path.is_file():
+                raise _fail(f"{plan_dir} has no plan.json. Run `python -m openborder plan --out {plan_dir}` first.")
+            try:
+                document = json.loads(plan_path.read_text(encoding="utf-8"))
+            except ValueError as e:
+                raise _fail(f"{plan_path} is not valid JSON: {e}")
+            explanations = explainer.find_in_plan(document, find)
+    except explainer.ExplainError as e:
+        raise _fail(str(e))
+    if as_json:
+        typer.echo(json.dumps({"explanations": explanations}, indent=2, ensure_ascii=False))
+        return
+    for explanation in explanations:
+        report.print_explanation(console, explanation)

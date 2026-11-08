@@ -14,10 +14,8 @@ from openborder.ir import (
     Tier,
     TraceStep,
     Variable,
-    worst,
 )
 from openborder.mappings import Mapping
-from openborder.sources.datadog import query_parser as qp
 from openborder.sources.datadog.lower import Ctx, Recorder, _label, translate
 
 EXACT, EQUIVALENT, APPROXIMATE, MANUAL = Tier.EXACT, Tier.EQUIVALENT, Tier.APPROXIMATE, Tier.MANUAL

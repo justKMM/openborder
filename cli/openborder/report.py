@@ -33,6 +33,33 @@ def _panel_detail(panel) -> str:
     return ""
 
 
+def print_explanation(console: Console, e: dict) -> None:
+    """One explanation: what the source said, every rule that ran, what came out, and what to watch for."""
+    tier = Tier[e["tier"].upper()]
+    console.print(f"[bold]{e['title']}[/bold]  [dim]{e['kind']}[/dim]  {_tag(tier)} {tier.label}")
+    for original in e["original"]:
+        console.print(f"  [dim]Datadog:[/dim] {original}")
+    if e["trace"]:
+        table = Table(header_style="bold", box=None, pad_edge=False, show_edge=False)
+        for column in ("", "Rule", "Before", "After"):
+            table.add_column(column, overflow="fold")
+        for step in e["trace"]:
+            table.add_row(_tag(Tier[step["tier"].upper()]), step["rule_id"], step["before"], step["after"] or "-")
+        console.print(table)
+    if e["promql"]:
+        for promql in e["promql"]:
+            console.print(f"  [dim]PromQL:[/dim]  {promql}")
+    else:
+        console.print("  [red]No translation: this needs a manual rewrite.[/red]")
+    if e.get("thresholds"):
+        levels = " · ".join(f"{k} {v:g}" for k, v in sorted(e["thresholds"].items(), key=lambda kv: kv[1]))
+        enabled = "" if "enabled" not in e else ("  [green]enabled[/green]" if e["enabled"] else "  [yellow]disabled[/yellow]")
+        console.print(f"  [dim]Thresholds:[/dim] {levels}{enabled}")
+    for f in e["findings"]:
+        console.print(f"  {_tag(Tier[f['tier'].upper()])} [dim]{f['rule_id']}[/dim]  {f['message']}")
+    console.print()
+
+
 def print_apply_summary(console: Console, loaded, api_url: str, dataset: str) -> None:
     """What `apply` is about to send, and where. Shown before the confirmation prompt."""
     console.print(f"[bold]Target[/bold]  {api_url}  ·  dataset '{dataset}'\n")
