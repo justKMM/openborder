@@ -6,7 +6,7 @@ OpenBorder migrates Datadog dashboards and monitors to [Dash0](https://www.dash0
 
 The translation path contains **no LLMs**. Every query passes through a parser and named translation rules, and each rule has a fixed fidelity tier. That makes every translation deterministic, testable, and explainable.
 
-> 🚧 **Status:** hackathon build in progress (thinc! 2026, Dash0 challenge). The commands below describe the target interface. Today `init`, `config`, `discover`, `plan`, `apply`, `version` and `--help` work; `explain` exists as a stub that exits with an error. `apply` has imported an empty dashboard into a real Dash0 org, but **no generated panels or alert rules have been imported there yet**, so how Dash0 renders them is still unverified. See [docs/SCOPE.md](docs/SCOPE.md) for what is in and out.
+> 🚧 **Status:** hackathon build in progress (thinc! 2026, Dash0 challenge). The commands below describe the target interface. Every command works: `init`, `config`, `discover`, `plan`, `apply`, `explain`. `apply` has imported an empty dashboard into a real Dash0 org, but **no generated panels or alert rules have been imported there yet**, so how Dash0 renders them is still unverified. See [docs/SCOPE.md](docs/SCOPE.md) for what is in and out.
 
 ## Why
 
@@ -45,7 +45,8 @@ python -m openborder init                                   # prompts for creden
 python -m openborder discover                                # list dashboards & monitors (read-only); filter with --name redis, --tag integration:redisdb
 python -m openborder plan --dashboard abc-def-ghi --monitor-tag integration:redisdb   # translate and write ./migration (imports nothing)
 python -m openborder plan --from-dir tests/fixtures/datadog                          # or work offline from exported JSON
-python -m openborder explain --query 'avg:redis.stats.keyspace_hits{*}'
+python -m openborder explain --find evictions               # how one panel or monitor of the plan was translated, rule by rule
+python -m openborder explain --query 'avg:redis.stats.keyspace_hits{*}'   # or trace any single query
 python -m openborder apply ./migration                      # shows what it will send, you type 'yes'; --dry-run sends nothing, --auto-approve skips the prompt
 ```
 
@@ -84,7 +85,7 @@ Redis - Overview  →  Perses dashboard
 ├── Memory Metrics
 │   ├── ≈ Percent Used Memory by Host  not migrated: 2 marker line(s)
 │   ├── ~ Evictions  per_minute() on a series that is not already a rate was translated to a per-secon…
-│   └── ✓ Total allocated memory  sum({otel_metric_name="redis.memory.rss", host_name=~"$host"})
+│   └── ✓ Total allocated memory  sum({otel_metric_name="redis.memory.rss", host_name=~"^($host)$"})
 …
   Coverage: 32/36 panels migrated (89%)  ✓ 13 · ≈ 11 · ~ 8 · ✗ 4
 
@@ -122,13 +123,21 @@ Dash0 will create these items, or overwrite them if they were imported before.
 Type 'yes' to import:
 ```
 
+### `explain`
+
+`explain` shows why a translation looks the way it does: the Datadog source, every rule that ran in order (with its tier and what it turned the input into), the resulting PromQL, and the findings. Every step is a named rule from [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md); nothing is guessed. `--find TEXT` looks up a panel (by title or key like `panel-19`) or monitor in the plan folder; `--query TEXT` traces a raw query without any plan (`--var host=host` declares template variables, `--monitor` treats it as a monitor query).
+
+### Machine-readable output
+
+`plan` and `apply` write `plan.json` and `apply.json`; `discover --json` and `explain --json` print JSON. Everything else is for people. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#building-on-top-of-the-cli-backend-and-gui) if you want to build on the CLI.
+
 ## Live-data demo
 
-[`demo/`](demo/) contains a `docker-compose` setup with Redis, a load generator, and an OpenTelemetry Collector (`redisreceiver`) that sends metrics to Dash0. With it running, the migrated dashboard shows real data, not just an empty layout.
+[`demo/`](demo/) is a `docker-compose` setup with Redis (small `maxmemory`, so evictions happen), a load generator, and an OpenTelemetry Collector (`redisreceiver`) that sends metrics to Dash0, so the migrated dashboard can show real data instead of an empty layout. It starts and the collector's output has been checked against our metric mapping; sending to Dash0 needs your endpoint and token and has not been run. See [demo/README.md](demo/README.md).
 
 ## Documentation
 
 - [docs/SCOPE.md](docs/SCOPE.md): scope, non-goals, priorities, and timeline
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): pipeline, IR, fidelity model, and Dash0 integration
 - [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md): what translates, how, and at which tier
-- [CONTRIBUTING.md](CONTRIBUTING.md): development guidelines
+- [demo/README.md](demo/README.md): the live Redis data stack

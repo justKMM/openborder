@@ -2,7 +2,7 @@
 
 Design goal: **the simplest pipeline that is deterministic, explainable, and actually imports into Dash0.** Delivery speed comes before extensibility. We keep a small IR because the brief asks for one and because it keeps the parser separate from the generators. There is no plugin system and no abstract base classes until a second vendor exists.
 
-**Implementation status:** `init`, `config`, `discover`, `plan` and `apply` are built and tested (172 tests). `explain` is not built. `apply` has imported one empty dashboard into a real Dash0 org; no panels, variables or check rules have been imported there yet, so the Perses panel dialect and the rule import are still from Dash0's documentation.
+**Implementation status:** All commands are built and tested (214 tests): `init`, `config`, `discover`, `plan`, `apply`, `explain`. `apply` has imported one empty dashboard into a real Dash0 org; no panels, variables or check rules have been imported there yet, so the Perses panel dialect and the rule import are still from Dash0's documentation. The demo stack (`demo/`) runs locally and its collector output was checked against our metric mapping; sending to Dash0 has not been run.
 
 ## Pipeline
 
@@ -26,7 +26,7 @@ Design goal: **the simplest pipeline that is deterministic, explainable, and act
 
 `plan` runs every stage except the last. `apply` reads only `./migration/` and never re-translates, so what you reviewed is exactly what gets imported.
 
-**The core is a pure library.** `openborder.core.plan(dashboards, monitors, options, skipped)` runs in memory: raw Datadog JSON in, artifacts as `{relative_path: bytes}` plus findings out. It does no disk, environment, network or Docker access, which is why `promtool.py` (Docker) and `config.py` (environment) are separate modules that `core` never imports. The CLI is a thin shell: it fetches inputs, calls the core, runs `promtool`, writes the files and prints the report. This keeps the core easy to test, and a GUI could reuse it later (see [Future: GUI](#future-gui)).
+**The core is a pure library.** `openborder.core.plan(dashboards, monitors, options, skipped)` runs in memory: raw Datadog JSON in, artifacts as `{relative_path: bytes}` plus findings out. It does no disk, environment, network or Docker access, which is why `promtool.py` (Docker) and `config.py` (environment) are separate modules that `core` never imports. The CLI is a thin shell: it fetches inputs, calls the core, runs `promtool`, writes the files and prints the report. This keeps the core easy to test, and a GUI could reuse it later (see [Building on top of the CLI](#building-on-top-of-the-cli-backend-and-gui)).
 
 ## Package layout
 
@@ -35,13 +35,14 @@ cli/                         # all CLI logic lives here; run from this directory
   requirements.txt
   openborder/                # the Python package → `python -m openborder <command>`
     __main__.py              # entry point (forces UTF-8 output so tier symbols never crash a Windows console)
-    cli.py                   # CLI shell: init, config, discover, plan, apply (explain: stub)
+    cli.py                   # CLI shell: init, config, discover, plan, apply, explain
     core.py                  # pure: plan() and render_plan_json(); no I/O
     ir.py                    # IR (frozen dataclasses): Tier, Finding, TraceStep, Expr nodes, Panel, Dashboard, AlertRule
     ids.py                   # stable_id() (uuid5) and slug(): the only source of identifiers
     config.py                # credentials/settings in cli/.env (shell-side; never imported by core)
     report.py                # Rich output: plan tree, coverage, monitors, findings-by-rule, validation
     validate.py              # pure: dashboard structure checks, pydantic model of the check-rule body
+    explain.py               # shell-side: explanations (dicts) of a query, panel or monitor; `explain --json` prints them
     apply.py                 # shell-side: load and verify a plan folder for `apply` (hashes, re-validation, Dash0 size limits)
     dash0_client.py          # Dash0 API (httpx): the two import endpoints; https-only, dataset check, error messages
     promtool.py              # `promtool check rules` via Docker (CLI only)
@@ -62,8 +63,9 @@ cli/                         # all CLI logic lives here; run from this directory
   tests/
     conftest.py              # autouse isolation (temp cwd, no credentials), golden-file helper, FakeDash0 (a real local HTTP server)
     fixtures/datadog/redisdb # the real Redis dashboard and monitor from integrations-core
+    fixtures/otel/redisreceiver.json  # metrics a real collector 0.165.0 emitted; guards the Redis mapping
     golden/redis/            # expected artifacts for those fixtures
-demo/                        # docker-compose: redis, load generator, otel-collector (not built yet)
+demo/                        # docker-compose: redis, load generator, otel-collector (see demo/README.md)
 ```
 
 `backend/` and `frontend/` folders are reserved for a possible GUI later. They don't exist.
@@ -110,9 +112,9 @@ mapping.metric            ✓  redis.stats.keyspace_hits → redis.keyspace.hits
 mapping.transform.rate    ≈  Datadog reports a per-second rate; OTel exports a cumulative counter → rate()
 dd.var.free-scope         ✓  $scope dropped (default is *; reported once on the dashboard)
 mapping.tag               ✓  host → host_name
-dd.var.prefixed           ✓  $host → host_name=~"$host"
+dd.var.prefixed           ✓  $host → host_name=~"^($host)$"   (anchored: Dash0's =~ is an unanchored search)
 dd.space-agg              ✓  avg
-→ avg(rate({otel_metric_name="redis.keyspace.hits", host_name=~"$host"}[$__rate_interval]))     tier ≈
+→ avg(rate({otel_metric_name="redis.keyspace.hits", host_name=~"^($host)$"}[$__rate_interval]))     tier ≈
 ```
 
 Context differences: in a **dashboard** the rate window is `$__rate_interval`, auto rollups use `$__interval`, and `top()` uses `$__range`. In a **monitor** (a Prometheus rule has no such variables) the rate window is the monitor's own window, rollups use `1m`, and `top()` is unavailable.
@@ -203,7 +205,17 @@ migration.log        # JSON lines: one non-exact finding per line (the "logs" th
 
 `DASH0_API_URL` must be `https://` (or `localhost` for tests), so the token cannot go out in plain text. `DASH0_DATASET` is checked against Dash0's slug pattern before any request.
 
-## Dash0 integration (from the documentation; not yet exercised)
+## `explain`
+
+Answers "why does this panel look like that?" without re-translating anything.
+
+- `explain --find TEXT [--plan DIR]` searches a plan folder's `plan.json` for panels (title or key such as `panel-19`) and monitors (title) and prints each one's Datadog source, every rule that ran in order with its tier and before/after, the generated PromQL, the thresholds, and the findings. More than 8 matches asks you to narrow down; no match lists what exists.
+- `explain --query TEXT [--var NAME=TAGPREFIX ...] [--monitor]` translates a single query with the bundled mappings and shows the same. `--var host=host` declares a template variable with tag prefix `host`; `--var scope=` declares a free-form one. An undeclared `$var` is reported as `dd.var.unknown`, not guessed. `--monitor` treats the text as a monitor query.
+- `--json` prints `{"explanations": [...]}` for tools. The logic is in `explain.py` and returns plain dicts, so a backend can reuse it.
+
+The trace it prints is the one recorded during `plan` (the `Recorder` steps), so it cannot disagree with what was generated.
+
+## Dash0 integration (from the documentation; one empty dashboard import verified)
 
 | Endpoint | Notes |
 |---|---|
@@ -222,13 +234,42 @@ These are stored by `openborder init` / `config set` in `cli/.env` (gitignored; 
 - **Monitors:** `GET /api/v1/monitor`; with no `page` parameter Datadog returns every match in one response. `--tag` / `--monitor-tag` maps to `monitor_tags`. The response has the same shape as an exported monitor, so one converter handles both.
 - **Errors:** HTTP 401/403 and 429 get specific messages (`explain_http_error`); network failures become a `DatadogError`. The CLI never prints credentials.
 
-## Future: GUI
+## Building on top of the CLI: backend and GUI
 
-Not built, and not planned for the hackathon build. The idea is the way AWS offers both a CLI and a console: a GUI for less technical users, backed by the same core.
+Not built. The idea is the way AWS offers a CLI and a console: a GUI for less technical users on the same engine. A `backend/` and a `frontend/` folder are reserved for it. Two ways to build the backend; the first is what is planned, the second is the better end state.
 
-- A `backend/` service would expose `plan`, `explain`, and `apply` over HTTP by calling `openborder.core`. A `frontend/` app would sit on top of it.
-- The only obligation today is to keep the core free of I/O (see [CONTRIBUTING.md](../CONTRIBUTING.md#code-organization)), so it can be called from a service as easily as from the CLI.
-- If this happens, decisions about the web framework, hosting, and credential handling get made then. User-supplied Datadog and Dash0 keys should never be persisted or logged.
+### 1. Call the CLI as a subprocess (what works today)
+
+Everything below is how the CLI really behaves now.
+
+| Topic | Contract |
+|---|---|
+| How to run | `python -m openborder <command>` using the venv in `cli/`, **with the working directory set to `cli/`** (or `PYTHONPATH` pointing at it), because the package is not pip-installed |
+| Credentials | Environment variables win over `cli/.env`: `DD_API_KEY`, `DD_APP_KEY`, `DD_SITE`, `DASH0_AUTH_TOKEN`, `DASH0_API_URL`, `DASH0_DATASET`. A multi-user backend should set them **per call** and never run `init`/`config set`. Set `OPENBORDER_ENV_FILE` to a path that does not exist so a shared `cli/.env` is never read. Never log the environment |
+| Exit codes | `0` success · `1` failure (a one-line explanation is printed) · `2` usage error. `plan` exits `1` if validation failed, but still writes the artifacts |
+| Machine-readable results | `plan` writes `<out>/plan.json`, `check-rules.json`, `perses/*.json`, `migration.log`; `apply` writes `<dir>/apply.json`; `discover --json` and `explain --json` print JSON on stdout. **Read the files, do not parse the Rich text.** Errors are plain text on stdout with a non-zero exit code, so check the exit code before parsing |
+| Prompts | `apply` asks for `yes` unless `--auto-approve`. A GUI should build its own confirmation screen from `plan.json` and then call `apply --auto-approve`. Never call `init` (interactive) |
+| Isolation | Use a fresh `--out` folder per job. `plan` deletes stale `perses/*.json` when the folder already has a `plan.json` |
+| `apply` results | `apply.json` is written once the import stage starts; failures before that (missing token, a plan that failed validation or has another `version`) exit `1` with text only |
+| Docker | `plan` runs `promtool` through Docker; pass `--no-promtool` on a host without it |
+| Output | Set `NO_COLOR=1`. The entry point forces UTF-8 so tier symbols cannot crash a legacy Windows console |
+| Time | `plan` fetches dashboards one at a time and `apply` imports one request each; there is no progress stream, so run them as background jobs and poll |
+
+Useful files for a UI: `plan.json` has, per dashboard and panel, the tier, the findings, the rule trace, the generated PromQL and the original Datadog widget, and `summary` has the counts; that is enough to draw the "before → after" screens without calling the CLI again. `explain --find TEXT --json` returns one panel's trace.
+
+### 2. Import it as a library (recommended once the backend exists)
+
+The pure engine is reusable as is: `openborder.core.plan()`, `core.render_plan_json()`, `explain.find_in_plan()` / `explain_query()`, `apply.load_plan()`, `DatadogClient`, `Dash0Client`. What still lives in `cli.py` and would have to be copied or extracted: input selection and filtering (`--dashboard`, `--name`, `--monitor-tag`), the `promtool` call, writing the artifacts, and the import loop with its per-item results.
+
+Suggested first step for the backend work: move those four pieces into one module that returns data and never prints or raises `typer.Exit` (for example `openborder/service.py` with `run_plan(...)`, `run_apply(...)`, `run_discover(...)`), make the CLI commands thin callers of it, and have the backend call the same functions. The 214 tests cover the commands, so the refactor is safe to do first.
+
+### Not solved yet (a hosted GUI will need these)
+
+- Credentials of other people: the CLI is single-tenant. Keys must be request-scoped and never persisted or logged.
+- Progress reporting and cancellation for long `plan` / `apply` runs.
+- Authentication and authorisation of the backend itself, and rate limiting (it can write to a customer's Dash0 org).
+- A pre-import confirmation that is built from `plan.json` rather than from terminal text.
+- Hosting: nothing is decided. Supabase Edge Functions run only JavaScript/TypeScript, so a Python engine needs a Python host (a container, or Vercel's Python runtime).
 
 ## Adding a vendor (later)
 

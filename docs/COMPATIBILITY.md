@@ -20,11 +20,11 @@ A panel or alert takes the worst tier of its rules. A rule recorded as "✓" nev
 | tag with no mapping | tag with non-identifier characters replaced by `_`; may not exist on the series | ~ | `mapping.unmapped-tag` | ☑ |
 | `{*}` | no extra matchers | ✓ | (no rule) | ☑ |
 | `{k:v}`, `{!k:v}` | `k="v"`, `k!="v"` | ✓ | `dd.filter.eq` | ☑ |
-| `{k:web-*}` | `k=~"web-.*"` (regex characters escaped) | ✓ | `dd.filter.wildcard` | ☑ |
-| `{k IN (a,b)}`, `{k NOT IN (a,b)}` | `k=~"a\|b"`, `k!~"a\|b"` | ✓ | `dd.filter.in` | ☑ |
+| `{k:web-*}` | `k=~"^web-.*$"` (regex characters escaped, anchored) | ✓ | `dd.filter.wildcard` | ☑ |
+| `{k IN (a,b)}`, `{k NOT IN (a,b)}` | `k=~"^(a\|b)$"`, `k!~"^(a\|b)$"` | ✓ | `dd.filter.in` | ☑ |
 | filter value with uppercase | exact match kept; Datadog lowercases tag values, OTel keeps case | ≈ | `dd.filter.case` | ☑ |
 | `OR`/`AND` filter, bare tag | cannot be expressed as label matchers | ✗ | `dd.filter.unsupported` | ☑ |
-| `{$var}` or `{k:$var}` where the variable has a tag prefix | `label=~"$var"` | ✓ | `dd.var.prefixed` | ☑ |
+| `{$var}` or `{k:$var}` where the variable has a tag prefix | `label=~"^($var)$"` (Dash0 interpolates the selected values, `a\|b\|c` for multi-select) | ✓ | `dd.var.prefixed` | ☑ |
 | `{$scope}`-style free-form variable, default `*` | filter dropped; identical under the default (reported once per dashboard, see below) | ✓ | `dd.var.free-scope` | ☑ |
 | free-form variable with a non-`*` default | filter dropped, so the panel shows more series | ~ | `dd.var.free-scope` | ☑ |
 | `$var` not defined on the dashboard | — | ✗ | `dd.var.unknown` | ☑ |
@@ -135,7 +135,9 @@ The source of truth is [`cli/openborder/mappings/datadog/redis.yaml`](../cli/ope
 | `redis.cpu.sys`, `redis.cpu.user` | **rate** of `used_cpu_*` | `redis.cpu.time{state="sys"\|"user"}` | `rate()` |
 | `redis.info.latency_ms`, `redis.slowlog.micros.*`, `redis.replication.delay`, `redis.replication.master_link_down_since_seconds`, `redis.key.length` | — | none in `redisreceiver` | unmapped (~) |
 
-**Tags:** `host` → `host_name` (assumes the collector adds `host.name`, e.g. with the `resourcedetection` processor); `redis_host` → `server_address` and `redis_port` → `server_port` (resource attributes disabled by default); `redis_db` → `db`. Other tags pass through with a ~ finding.
+**Tags:** `host` → `host_name` (assumes the collector adds `host.name`, e.g. with the `resourcedetection` processor); `redis_host` → `server_address` and `redis_port` → `server_port` (resource attributes disabled by default); `redis_db` → `db`, **but the values differ**: Datadog's is `db0`, the collector's is `0`, so a filter on a specific database won't match (the Redis dashboard has none). Other tags pass through with a ~ finding.
+
+**Verified against a real collector (2026-11-08):** every OTel metric above was emitted by `redisreceiver` in OpenTelemetry Collector 0.165.0 against `redis:7-alpine` (with `redis.maxmemory` enabled), with the attributes and types the mapping assumes: `rate()` is only used on monotonic cumulative sums, and `state=sys|user` occurs on `redis.cpu.time`. The captured output is `cli/tests/fixtures/otel/redisreceiver.json` and `cli/tests/test_mapping_vs_collector.py` fails if the mapping drifts from it. The unmapped Datadog metrics are not emitted by the receiver.
 
 ## Known semantic differences (detail)
 
@@ -146,6 +148,17 @@ The source of truth is [`cli/openborder/mappings/datadog/redis.yaml`](../cli/ope
 - **Window aggregation in monitors:** `avg(last_5m)` over a formula is evaluated as a subquery at 1-minute resolution (≈).
 - **Tag value case:** Datadog lowercases tag values, OTel attribute values keep their case (≈, `dd.filter.case`).
 - **Message templates:** Dash0's alert template syntax is assumed to match Prometheus (`{{ $value }}`, `{{ $labels.x }}`); not yet verified.
+
+## What Dash0's reference pages say (read 2026-11-08, shaped the output)
+
+Source: the [TimeSeriesChart](https://www.dash0.com/docs/dash0/dashboards/types/TimeSeriesChart) and [StatChart](https://www.dash0.com/docs/dash0/dashboards/types/StatChart) panel pages and the [list variables](https://www.dash0.com/docs/dash0/dashboards/add-variables/use-list-variables) page.
+
+- **Regex matchers are unanchored in Dash0** (`=~` is a search, unlike Prometheus). Every regex we emit is therefore anchored explicitly (`^(…)$`), which means the same thing under both engines.
+- **List variables** are referenced as `$name` inside a label matcher; the query supplies the label and operator, Dash0 supplies only the values.
+- **Format objects** (`yAxis.format`, StatChart `format`) always need a `unit`; `decimalPlaces` alone is invalid, so a panel with a precision but no unit gets `"unit": "decimal"`. All unit names we emit (`percent`, `seconds`, `milliseconds`, `bytes`, `decimal`) are in the documented list.
+- `StatChart.calculation` accepts `first`, `last`, `first-number`, `last-number`, `mean`, `sum`, `min`, `max`, `instant`; we use `mean`, `max`, `min`, `last`, `sum`.
+- TimeSeriesChart legend uses `showLegend` and `position`.
+- **Not documented anywhere we found:** the JSON shape of a variable definition (variable kind and plugin names). The `ListVariable` / `PrometheusLabelValuesVariable` shape is our assumption from upstream Perses; a real import will show.
 
 ## Verified against a live Dash0 (2026-11-08)
 

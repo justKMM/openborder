@@ -22,13 +22,21 @@ Show that a real Datadog dashboard and monitor (`integrations-core/redisdb`: "Re
 | Redis mapping | ☑ done, evidence cited in the YAML |
 | Dashboard → Perses, placeholders, layout, variables | ☑ done |
 | Monitor → check rule | ☑ done |
-| Validation: structure, rule schema, `promtool` | ☑ done; the Dash0 request limits are not checked yet |
+| Validation: structure, rule schema, `promtool`, Dash0 size limits | ☑ done (limits are checked by `apply`) |
 | `plan` with tree, coverage and findings | ☑ done: the real Redis dashboard gives 32/36 panels migrated, 1/1 monitor armed |
 | `apply` (Dash0 import) | ☑ built: confirmation gate, `--dry-run`, hash check, re-validation, stable IDs; tested against a local stand-in server. Real Dash0: an **empty** dashboard imported fine (auth, endpoint, response); panels and check rules **not yet**. |
-| `explain` | ☐ the data is already in `plan.json`; the command is not built |
-| `demo/` live Redis data | ☐ not built |
+| `explain` | ☑ done: `--find` on a plan, `--query` on a raw query, `--json` |
+| `demo/` live Redis data | ☑ built; runs locally and its collector output was checked against our mapping (`tests/fixtures/otel`). **Sending to Dash0 has not been run** (needs your endpoint and token) |
 
 **Next step: import the Redis plan (36 panels, 1 alert) into the real Dash0 org.** It is the biggest open risk: no generated panel, variable or check rule has met a real Dash0 yet; see "Not verified against a live Dash0" in [COMPATIBILITY.md](COMPATIBILITY.md).
+
+## What is left (in order)
+
+1. **Import the Redis plan into the real Dash0 org** (`apply`, run by the user) and fix whatever Dash0 rejects. The variable definition's JSON shape is the likeliest surprise (Dash0 doesn't document it).
+2. **Run the demo stack against Dash0** (`demo/README.md`) and check that the migrated dashboard fills in. This is also the first real test of `$__rate_interval`, `$__range` and the `^($host)$` variable matcher.
+3. Import Datadog's Redis content into the Datadog org so the full Datadog → Dash0 path can be shown over the API instead of from files.
+4. Submission: fork `vimouzin/dash0-dashboard-migrator`, push this work to a feature branch, open the PR (`origin` is currently `justKMM/openborder`, not a fork of it).
+5. Optional: a host-metrics mapping (`system.*` → OTel `hostmetrics`) so Datadog's default host monitors migrate for real; the static HTML report; the backend and GUI (see [ARCHITECTURE.md](ARCHITECTURE.md#building-on-top-of-the-cli-backend-and-gui)).
 
 ## Must-have (P0)
 
@@ -67,7 +75,7 @@ Show that a real Datadog dashboard and monitor (`integrations-core/redisdb`: "Re
 - Metric mappings for all ~300 integrations. Only Redis is mapped; other metrics pass through and are flagged.
 - Continuous sync, drift detection, or managing Dash0 as code. Dash0's import API is meant for one-time migrations.
 - Reverse migration (Dash0 → Datadog) and multi-org support.
-- A GUI, a `backend/` service, or any hosting (Supabase, Vercel, and so on). The CLI comes first and is the whole deliverable. A GUI for less technical users is a possible later direction (see [ARCHITECTURE.md](ARCHITECTURE.md#future-gui)).
+- A GUI, a `backend/` service, or any hosting (Supabase, Vercel, and so on). The CLI comes first and is the whole deliverable. A GUI for less technical users is a possible later direction (see [ARCHITECTURE.md](ARCHITECTURE.md#building-on-top-of-the-cli-backend-and-gui)).
 - Any LLM in the translation, mapping, or validation path.
 
 ## Assumptions
@@ -94,13 +102,13 @@ If the end-to-end milestone slips past hour 8, all stretch work is cancelled.
 
 ## Definition of done (demo checklist)
 
-- [ ] `openborder discover` lists the Redis dashboard and monitor from the live Datadog org.
-- [ ] `openborder plan` prints a per-panel tier tree and a coverage score, and writes artifacts.
-- [ ] `openborder explain` shows a rule-by-rule trace for a non-trivial query.
-- [ ] `openborder apply` imports the dashboard and the check rule; running it again creates no duplicates.
+- [ ] `openborder discover` lists the Redis dashboard and monitor from the live Datadog org. *(works against the live org; the Redis content still has to be imported into Datadog first)*
+- [x] `openborder plan` prints a per-panel tier tree and a coverage score, and writes artifacts.
+- [x] `openborder explain` shows a rule-by-rule trace for a non-trivial query.
+- [ ] `openborder apply` imports the dashboard and the check rule; running it again creates no duplicates. *(an empty dashboard imported; the Redis plan is the next real test)*
 - [ ] The dashboard in Dash0 shows live Redis data; the check rule is visible with degraded 70 and failed 90.
-- [ ] Untranslatable widgets appear as placeholder panels with the original query.
-- [ ] `pytest` passes.
+- [x] Untranslatable widgets appear as placeholder panels with the original query. *(in the generated dashboard; not yet seen in Dash0)*
+- [x] `pytest` passes (214 tests).
 
 ## Top risks
 
