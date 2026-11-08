@@ -6,7 +6,7 @@ OpenBorder migrates Datadog dashboards and monitors to [Dash0](https://www.dash0
 
 The translation path contains **no LLMs**. Every query passes through a parser and named translation rules, and each rule has a fixed fidelity tier. That makes every translation deterministic, testable, and explainable.
 
-> 🚧 **Status:** hackathon build in progress (thinc! 2026, Dash0 challenge). The commands below describe the target interface. Today `init`, `config`, `discover`, `version` and `--help` work; `plan`, `apply` and `explain` exist as stubs that exit with an error. See [docs/SCOPE.md](docs/SCOPE.md) for what is in and out.
+> 🚧 **Status:** hackathon build in progress (thinc! 2026, Dash0 challenge). The commands below describe the target interface. Today `init`, `config`, `discover`, `plan`, `version` and `--help` work; `apply` and `explain` exist as stubs that exit with an error. Nothing has been imported into Dash0 yet. See [docs/SCOPE.md](docs/SCOPE.md) for what is in and out.
 
 ## Why
 
@@ -43,7 +43,8 @@ pip install -r requirements.txt
 python -m openborder init                                   # prompts for credentials, saves them to cli/.env (gitignored)
 
 python -m openborder discover                                # list dashboards & monitors (read-only); filter with --name redis, --tag integration:redisdb
-python -m openborder plan --dashboard abc-def-ghi --monitor-tag integration:redisdb
+python -m openborder plan --dashboard abc-def-ghi --monitor-tag integration:redisdb   # translate and write ./migration (imports nothing)
+python -m openborder plan --from-dir tests/fixtures/datadog                          # or work offline from exported JSON
 python -m openborder explain --query 'avg:redis.stats.keyspace_hits{*}'
 python -m openborder apply ./migration                      # asks for confirmation; --auto-approve to skip
 ```
@@ -65,22 +66,37 @@ python -m openborder apply ./migration                      # asks for confirmat
 
 To work offline, use `--from-dir PATH` instead of the Datadog API. It reads exported dashboard and monitor JSON, for example from [DataDog/integrations-core](https://github.com/DataDog/integrations-core).
 
-### Example plan output (mockup)
+### `plan`
+
+`plan` translates everything and writes the result to `./migration` (change it with `--out`); it never imports anything. Selection: `--dashboard ID` (repeatable) and `--monitor-tag TAG` pick specific items, `--name TEXT` filters both by name, `--no-dashboards` / `--no-monitors` skip a kind. Other flags: `--enable-approximate` (arm ~ alerts instead of importing them disabled) and `--no-promtool` (skip the Docker-based PromQL syntax check).
+
+What it writes: `perses/<dashboard>.json` and `check-rules.json` (the exact bodies Dash0's import APIs take), `plan.json` (everything needed to review it, including each panel's rule trace and the original Datadog definition), and `migration.log` (one JSON line per finding). The same input always produces byte-identical files.
+
+### Example plan output (real run on the Redis assets from integrations-core, abridged)
 
 ```
 Redis - Overview  →  Perses dashboard
-  ├─ ✓ Memory used                    avg by (host_name) ({otel_metric_name="redis.memory.used"})
-  ├─ ≈ Keyspace hit rate              rate(...) instead of agent-computed per-second rate
-  ├─ ~ Top 10 slowest commands        top() ranks over the window; topk over avg_over_time
-  └─ ✗ Redis logs (list_stream)       log streams unsupported → placeholder panel
-  Coverage: 41/43 panels migrated (✓ 30 · ≈ 8 · ~ 3 · ✗ 2)
+├── Performance Metrics
+│   ├── ~ Latency by Host  'redis.info.latency_ms' has no known OpenTelemetry equivalent; it is queried …
+│   ├── ✗ Slowlog query rates  Dash0 has no ranked bar/table panel we can target yet; recreate it as …
+│   ├── ≈ Average CPU usage  Datadog's agent reports a per-second rate computed between check runs; …
+│   └── ~ Cache hit rate  Datadog aggregates each query over the time range first and then evaluates …
+├── Memory Metrics
+│   ├── ≈ Percent Used Memory by Host  not migrated: 2 marker line(s)
+│   ├── ~ Evictions  per_minute() on a series that is not already a rate was translated to a per-secon…
+│   └── ✓ Total allocated memory  sum({otel_metric_name="redis.memory.rss", host_name=~"$host"})
+…
+  Coverage: 32/36 panels migrated (89%)  ✓ 13 · ≈ 11 · ~ 8 · ✗ 4
 
 Monitors  →  Dash0 check rules
-  └─ ≈ [Redis] High memory consumption   degraded 70 · failed 90 · enabled
+└── ≈ [Redis] High memory consumption  degraded 70 · failed 90  enabled
   Armed: 1/1
 
-Artifacts written to ./migration  ·  run `openborder apply ./migration` to import
+✓ promtool accepted all 24 PromQL expressions
+Artifacts written to migration  ·  review them, then run `python -m openborder apply migration`
 ```
+
+The `✗` panels are not lost: each becomes a placeholder panel in the same grid position that explains why and quotes the original query. Nothing is imported into Dash0 yet (`apply` is next), so the generated dashboard and rule have not been seen working in Dash0.
 
 ## Live-data demo
 

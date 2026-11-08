@@ -1,0 +1,887 @@
+{
+  "items": [
+    {
+      "artifact": "perses/k-s-dashboard-sun-nov-8-12-31-00-am.json",
+      "findings": [],
+      "kind": "dashboard",
+      "panels": [],
+      "sha256": "8def41bc0d13bfddb1e70969332beedf07e8a8f4ca383999778e3098f04cb211",
+      "source_ref": "datadog:dashboard:i8h-eg4-5f2",
+      "tier": "exact",
+      "title": "K's Dashboard Sun, Nov 8, 12:31:00 am"
+    },
+    {
+      "artifact": "check-rules.json",
+      "enabled": false,
+      "findings": [
+        {
+          "message": "'system.io.await' has no known OpenTelemetry equivalent; it is queried under its Datadog name and will probably show no data until it is mapped",
+          "rule_id": "mapping.unmapped-metric",
+          "source_ref": "monitor:Disk latency is high for host {{host.name}} on device {{device.name}}",
+          "tier": "approximate"
+        },
+        {
+          "message": "tag 'device' has no mapping; it is used as label 'device', which may not exist on the OpenTelemetry series",
+          "rule_id": "mapping.unmapped-tag",
+          "source_ref": "monitor:Disk latency is high for host {{host.name}} on device {{device.name}}",
+          "tier": "approximate"
+        },
+        {
+          "message": "not migrated (no Prometheus equivalent): new_host_delay/new_group_delay",
+          "rule_id": "dd.monitor.options-ignored",
+          "source_ref": "monitor:Disk latency is high for host {{host.name}} on device {{device.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "message template changed: converted {{value}}/{{host.name}} to Prometheus template syntax; left unconverted Datadog template variables: {{device.name}} (verify the rendering in Dash0)",
+          "rule_id": "dd.monitor.message",
+          "source_ref": "monitor:Disk latency is high for host {{host.name}} on device {{device.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "notification handles removed; set up routing in Dash0 manually: @pagerduty-core-systems, @slack-infra, @your-team-handle",
+          "rule_id": "dd.monitor.notify",
+          "source_ref": "monitor:Disk latency is high for host {{host.name}} on device {{device.name}}",
+          "tier": "equivalent"
+        }
+      ],
+      "kind": "monitor",
+      "original": {
+        "created": "2026-11-08T04:36:13.522109+00:00",
+        "created_at": 1794112573000,
+        "creator": {
+          "email": "support-user-prod@datadoghq.com",
+          "handle": "support-scaca-2ehtdwyypdf2",
+          "id": 1017770732,
+          "name": "Datadog Support"
+        },
+        "deleted": null,
+        "draft_status": "published",
+        "id": 130202472,
+        "matching_downtimes": [],
+        "message": "## 🚨 What’s happening\n\nHigh disk I/O wait time detected on host {{host.name}}.\n\nThis means one or more devices on the host are taking a long time to complete disk operations — averaging over 500ms in the last 5 minutes. High I/O wait time typically occurs when the system is frequently waiting for disk reads or writes to finish, often due to storage contention or inefficient disk usage by running processes.\n\n---\n\n## 📈 Impact\n\nIf I/O wait remains high, it can lead to:\n\n- Slower application and system performance, especially for disk-intensive services\n- Delayed job processing or database queries\n- Risk of timeouts or service degradation due to blocked I/O operations\n\nSustained disk latency can have cascading effects on dependent services and degrade user experience.\n\n---\n\n## Runbook\n\n### Initial Troubleshooting Steps\n\n## 🛠 How to fix (Runbook)\n\n### 🔍 Initial troubleshooting\n\n1. Identify the affected host and device from the alert.\n2. Open [**Infrastructure > Host Details**](/infrastructure) for {{host.name}}.\n3. In the **Metrics tab**, examine:\n   - `system.io.await` by device\n   - `system.disk.read_time`, `system.disk.write_time`, `system.disk.in_use`\n4. Use [**Live Processes**](/process) to find I/O-heavy processes.\n5. SSH into the host and run:\n   ```bash\n   iostat -xd 1 3\n   \n### Cause and Resolution\n\nCause | Resolution\n------|------\nDisk-heavy processes | Restart or optimize services with high I/O usage\n------|------\nBackup jobs, ETLs, logging | Schedule or throttle non-critical workloads\n------|------\nUnderlying disk performance | Check for slow or saturated disks, especially on network-attached volumes (e.g., EBS, NFS)\n------|------\nScale-out option | Move I/O-intensive tasks to separate or faster storage tiers\n        \n###  Related links\n\n* [Host Map](/infrastructure/map)\n* [Live Processes](/process?query=host%3A{{host.name}})\n* [System Dashboards](/dashboard/lists)\n* [Monitor Documentation](https://docs.datadoghq.com/monitors/)\n* [Logs](/logs?query=device:{{device.name}})\n* [Metrics Explorer (system.io.await)](/metric/explorer?exp_metric=system.io.await&exp_scope=device:{{device.name}}&exp_agg=avg&exp_type=line)\n\n### Who should be notified?\n\nAssign the appropriate notification handle for this alert (e.g., `@slack-infra`, `@pagerduty-core-systems`):  \n`@your-team-handle`",
+        "modified": "2026-11-08T04:36:13.522109+00:00",
+        "multi": true,
+        "name": "Disk latency is high for host {{host.name}} on device {{device.name}}",
+        "options": {
+          "include_tags": false,
+          "new_host_delay": 300,
+          "notify_audit": false,
+          "notify_no_data": false,
+          "silenced": {},
+          "thresholds": {
+            "critical": 500.0
+          }
+        },
+        "org_id": 1001024284,
+        "overall_state": "No Data",
+        "overall_state_modified": "2026-11-08T04:36:21+00:00",
+        "priority": null,
+        "query": "avg(last_5m):avg:system.io.await{*} by {device} > 500",
+        "restricted_roles": null,
+        "tags": [
+          "integration:host",
+          "monitor_pack:host"
+        ],
+        "type": "query alert"
+      },
+      "promql": "avg by (device) (avg_over_time({otel_metric_name=\"system.io.await\"}[5m])) > $__threshold",
+      "source_ref": "datadog:monitor:130202472",
+      "thresholds": {
+        "failed": 500.0
+      },
+      "tier": "approximate",
+      "title": "Disk latency is high for host {{host.name}} on device {{device.name}}",
+      "trace": [
+        {
+          "after": "system.io.await",
+          "before": "system.io.await",
+          "rule_id": "mapping.unmapped-metric",
+          "tier": "approximate"
+        },
+        {
+          "after": "device",
+          "before": "device",
+          "rule_id": "mapping.unmapped-tag",
+          "tier": "approximate"
+        },
+        {
+          "after": "avg",
+          "before": "avg",
+          "rule_id": "dd.space-agg",
+          "tier": "exact"
+        },
+        {
+          "after": "avg by (device) (avg_over_time({otel_metric_name=\"system.io.await\"}[5m]))",
+          "before": "avg(last_5m)",
+          "rule_id": "dd.monitor.window.pushdown",
+          "tier": "exact"
+        },
+        {
+          "after": ">",
+          "before": ">",
+          "rule_id": "dd.monitor.comparator",
+          "tier": "exact"
+        },
+        {
+          "after": "failed/degraded",
+          "before": "critical/warning",
+          "rule_id": "dd.monitor.thresholds",
+          "tier": "exact"
+        }
+      ]
+    },
+    {
+      "artifact": null,
+      "enabled": false,
+      "findings": [
+        {
+          "message": "could not translate the monitor query: only `avg|max|min|sum(last_N<unit>):<query> <comparator> <number>` monitor queries are supported (at position 0)",
+          "rule_id": "dd.monitor.unsupported-query",
+          "source_ref": "monitor:Disk usage is high for host {{host.name}} on device {{device.name}}",
+          "tier": "manual"
+        },
+        {
+          "message": "not migrated (no Prometheus equivalent): new_host_delay/new_group_delay",
+          "rule_id": "dd.monitor.options-ignored",
+          "source_ref": "monitor:Disk usage is high for host {{host.name}} on device {{device.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "message template changed: converted {{value}}/{{host.name}} to Prometheus template syntax; left unconverted Datadog template variables: {{.ID}}, {{.Names}}, {{device.name}} (verify the rendering in Dash0)",
+          "rule_id": "dd.monitor.message",
+          "source_ref": "monitor:Disk usage is high for host {{host.name}} on device {{device.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "notification handles removed; set up routing in Dash0 manually: @pagerduty-core-systems, @slack-infra, @your-team-handle",
+          "rule_id": "dd.monitor.notify",
+          "source_ref": "monitor:Disk usage is high for host {{host.name}} on device {{device.name}}",
+          "tier": "equivalent"
+        }
+      ],
+      "kind": "monitor",
+      "original": {
+        "created": "2026-11-08T04:36:13.776914+00:00",
+        "created_at": 1794112573000,
+        "creator": {
+          "email": "support-user-prod@datadoghq.com",
+          "handle": "support-scaca-2ehtdwyypdf2",
+          "id": 1017770732,
+          "name": "Datadog Support"
+        },
+        "deleted": null,
+        "draft_status": "published",
+        "id": 130202473,
+        "matching_downtimes": [],
+        "message": "## 🚨 What’s happening\n\nLow disk capacity detected on host {{host.name}}.\n\nThis alert indicates that one or more filesystems are **over 90% full**, meaning they are at risk of running out of space for applications to write. If unaddressed, writes will fail and applications may crash. Investigate and free space by deleting or archiving data, or by expanding the volume.\n\n---\n\n## 📈 Impact\n\nWhen disks run out of space, it can result in:\n\n- Applications failing on writes (such as databases, services writing logs, or temp files)\n- Stuck or crashing jobs (logging, backups, compactions, builds)\n- Node instability (for example, kubelet/daemon issues or package updates failing)\n\nSpace exhaustion can quickly degrade services, especially on hosts that handle large volumes of data or critical workloads.\n\n---\n\n## 🛠 How to fix (Runbook)\n\n### 🔍 Initial troubleshooting\n\n1. Identify the affected host and device/mount point from the alert.\n2. Open [**Infrastructure → Host Details**](/infrastructure) for **{{host.name}}**.\n3. In the **Metrics** tab, review:\n   - `system.disk.in_use` (fraction of space used)\n   - `system.disk.total`, `system.disk.used`, `system.disk.free`\n4. SSH into the host to find large directories/files (Linux/macOS):\n   ```bash\n   # Top space consumers by directory (human-readable)\n   sudo du -xhd1 / | sort -h | tail -n 20\n\n   # Top 50 largest files (avoid virtual filesystems)\n   sudo find / -xdev -type f -printf '%s %p\n' 2>/dev/null | sort -nr | head -50\n\n   # Filesystem usage\n   df -h\n   ```\n\n   On systems with `ncdu`:\n\n   ```bash\n   sudo ncdu -x /\n   ```\n\n   For Docker-heavy hosts:\n\n   ```bash\n   docker system df\n   docker ps --filter status=exited --format '{{.ID}}\t{{.Names}}'\n   ```\n\n> ⚠️ Be cautious with deletions. Prefer archiving/moving off-host or rotating/truncating logs using the owning service.\n\n### 🧹 Common causes & resolutions\n\nCause | How to resolve safely\n------|------\nRunaway logs (app, systemd/journal) | Rotate/compress logs; fix log levels. For journald: `journalctl --disk-usage`, then set retention (`/etc/systemd/journald.conf`). For example, `SystemMaxUse=1G`, and `sudo systemctl restart systemd-journald`.\nLeftover build/artifact/temp files | Clean workspace caches and temp dirs (`/tmp`, build caches). Add periodic cleanup to CI or cron.\nOld backups/snapshots on the host | Move backups to object storage; prune old sets per retention policy; avoid storing backups on root volumes.\nContainer images/volumes piling up | Remove unused images/containers/volumes once verified: `docker image prune -a`, `docker container prune`, `docker volume ls` (review before removing).\nApplication data growth (DBs, queues) | Purge/archive old data; enable partitioning/TTL; move cold data to cheaper storage; consider resizing the volume.\nLarge core dumps or crash artifacts | Review & archive off-host; tune core dump settings to limit or disable where appropriate.\n\n\n### 🔗 Related links\n\n* [Host Map](/infrastructure/map)\n* [Live Processes](/process?query=host%3A{{host.name}})\n* [System Dashboards](/dashboard/lists)\n* [Monitor Documentation](https://docs.datadoghq.com/monitors/)\n* [Logs](/logs?query=device:{{device.name}}+host:{{host.name}})\n* [Infrastructure](/infrastructure/hosts?scope=host:{{host.name}})\n* [Metrics Explorer (system.disk.free)](/metric/explorer?exp_metric=system.disk.free&exp_scope=device:{{device.name}},host:{{host.name}}&exp_agg=avg&exp_type=line)\n* [Metrics Explorer (system.disk.total)](/metric/explorer?exp_metric=system.disk.total&exp_scope=device:{{device.name}},host:{{host.name}}&exp_agg=avg&exp_type=line)\n\n### 👥 Who should be notified?\n\nAssign the appropriate notification handle for this alert (for example, `@slack-infra`, `@pagerduty-core-systems`):  \n`@your-team-handle`",
+        "modified": "2026-11-08T04:36:13.776914+00:00",
+        "multi": true,
+        "name": "Disk usage is high for host {{host.name}} on device {{device.name}}",
+        "options": {
+          "include_tags": false,
+          "new_host_delay": 300,
+          "notify_audit": false,
+          "notify_no_data": false,
+          "silenced": {},
+          "thresholds": {
+            "critical": 99.0,
+            "critical_recovery": 89.0
+          }
+        },
+        "org_id": 1001024284,
+        "overall_state": "No Data",
+        "overall_state_modified": "2026-11-08T04:36:19+00:00",
+        "priority": null,
+        "query": "max(next_3d):forecast((1 - avg:system.disk.free{*} by {host,device} / avg:system.disk.total{*} by {host,device}) * 100, \"seasonal\", 1, interval=\"60m\", seasonality=\"weekly\") >= 99",
+        "restricted_roles": null,
+        "tags": [
+          "integration:host",
+          "monitor_pack:host"
+        ],
+        "type": "query alert"
+      },
+      "promql": null,
+      "source_ref": "datadog:monitor:130202473",
+      "thresholds": {},
+      "tier": "manual",
+      "title": "Disk usage is high for host {{host.name}} on device {{device.name}}",
+      "trace": [
+        {
+          "after": "",
+          "before": "max(next_3d):forecast((1 - avg:system.disk.free{*} by {host,device} / avg:system.disk.total{*} by {host,device}) * 100, \"seasonal\", 1, interval=\"60m\", seasonality=\"weekly\") >= 99",
+          "rule_id": "dd.monitor.unsupported-query",
+          "tier": "manual"
+        }
+      ]
+    },
+    {
+      "artifact": "check-rules.json",
+      "enabled": false,
+      "findings": [
+        {
+          "message": "'system.mem.pct_usable' has no known OpenTelemetry equivalent; it is queried under its Datadog name and will probably show no data until it is mapped",
+          "rule_id": "mapping.unmapped-metric",
+          "source_ref": "monitor:Memory space is low for host {{host.name}}",
+          "tier": "approximate"
+        },
+        {
+          "message": "this fires when the value drops below the threshold; Dash0 documents that the higher threshold maps to 'failed', so the degraded/failed severities may be reversed for a below-threshold rule: verify in Dash0",
+          "rule_id": "dd.monitor.comparator.below",
+          "source_ref": "monitor:Memory space is low for host {{host.name}}",
+          "tier": "approximate"
+        },
+        {
+          "message": "not migrated (no Prometheus equivalent): new_host_delay/new_group_delay",
+          "rule_id": "dd.monitor.options-ignored",
+          "source_ref": "monitor:Memory space is low for host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "message template changed: converted {{value}}/{{host.name}} to Prometheus template syntax (verify the rendering in Dash0)",
+          "rule_id": "dd.monitor.message",
+          "source_ref": "monitor:Memory space is low for host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "notification handles removed; set up routing in Dash0 manually: @pagerduty-core-systems, @slack-infra, @your-team-handle",
+          "rule_id": "dd.monitor.notify",
+          "source_ref": "monitor:Memory space is low for host {{host.name}}",
+          "tier": "equivalent"
+        }
+      ],
+      "kind": "monitor",
+      "original": {
+        "created": "2026-11-08T04:36:13.895039+00:00",
+        "created_at": 1794112573000,
+        "creator": {
+          "email": "support-user-prod@datadoghq.com",
+          "handle": "support-scaca-2ehtdwyypdf2",
+          "id": 1017770732,
+          "name": "Datadog Support"
+        },
+        "deleted": null,
+        "draft_status": "published",
+        "id": 130202474,
+        "matching_downtimes": [],
+        "message": "## 🚨 What's happening\n\nLow available memory detected on host {{host.name}}.\n\nThis means the host has less than **10% usable memory** on average over the last 5 minutes, based on the `system.mem.pct_usable` metric. This typically indicates that applications or services are consuming most of the RAM, leaving little room for new processes or memory-intensive operations.\n\n***\n\n## 📈 Impact\n\nIf memory remains low, it can lead to:\n\n-   **Slower application performance** due to increased paging or swapping\n-   **Crashes or restarts** of services that can’t allocate enough memory\n-   **System instability** or degraded responsiveness under load\n-   **Failure of background jobs** or scheduled tasks\n\nThis may impact key services running on the host and disrupt user-facing or backend operations.\n\n***\n\n## Runbook\n\n### Initial Troubleshooting Steps\n\n1.  **Identify the affected host** from the alert.\n\n2.  Open [**Infrastructure > Host Details**](/infrastructure) in Datadog.\n\n3.  In the **Metrics** tab, examine:\n\n    -   `system.mem.pct_usable`, `system.mem.total`, `system.mem.used`\n    -   `process.mem.rss`, `process.mem.real`, or specific memory-hungry processes\n\n4.  Use [**Live Processes**](/process) to check which processes are using the most memory.\n\n5.  SSH into the host and run:\n\n    ```\n    bash\n    CopyEdit\n    top -o %MEM\n    ```\n\n***\n\n### Cause and Resolution\n\n| Cause                                      | Resolution                                                |\n| ------------------------------------------ | --------------------------------------------------------- |\n| Memory leaks or runaway processes          | Restart or stop problematic processes                     |\n| Memory-intensive workloads                 | Scale up memory capacity or move workloads to other nodes |\n| Background jobs or batch tasks overlapping | Stagger or reschedule heavy memory consumers              |\n| Misconfigured applications or JVMs         | Tune memory settings (e.g., heap size, buffers)           |\n\n***\n\n### Related links\n\n-   [Host Map](/infrastructure/map)\n-   [Live Processes](/process)\n-   [System Dashboards](/dashboard/lists)\n-   [Monitor Documentation](https://docs.datadoghq.com/monitors/)\n-   [Logs](/logs?query=host:{{host.name}})\n-   [Infrastructure](/infrastructure/hosts?scope=host:{{host.name}})\n-   [Metrics Explorer (system.mem.pct_usable)](/metric/explorer?exp_metric=system.mem.pct_usable&exp_scope=host:{{host.name}}&exp_agg=avg&exp_type=line)\n\n***\n\n### Who should be notified?\n\nPlease assign the appropriate notification handle for this alert (e.g., `@slack-infra`, `@pagerduty-core-systems`):\\\n`@your-team-handle`",
+        "modified": "2026-11-08T04:36:13.895039+00:00",
+        "multi": true,
+        "name": "Memory space is low for host {{host.name}}",
+        "options": {
+          "include_tags": false,
+          "new_host_delay": 300,
+          "notify_audit": false,
+          "notify_no_data": false,
+          "silenced": {},
+          "thresholds": {
+            "critical": 0.1
+          }
+        },
+        "org_id": 1001024284,
+        "overall_state": "No Data",
+        "overall_state_modified": "2026-11-08T04:36:24+00:00",
+        "priority": null,
+        "query": "avg(last_5m):avg:system.mem.pct_usable{*} by {host} < 0.1",
+        "restricted_roles": null,
+        "tags": [
+          "integration:host",
+          "monitor_pack:host"
+        ],
+        "type": "query alert"
+      },
+      "promql": "avg by (host_name) (avg_over_time({otel_metric_name=\"system.mem.pct_usable\"}[5m])) < $__threshold",
+      "source_ref": "datadog:monitor:130202474",
+      "thresholds": {
+        "failed": 0.1
+      },
+      "tier": "approximate",
+      "title": "Memory space is low for host {{host.name}}",
+      "trace": [
+        {
+          "after": "system.mem.pct_usable",
+          "before": "system.mem.pct_usable",
+          "rule_id": "mapping.unmapped-metric",
+          "tier": "approximate"
+        },
+        {
+          "after": "host_name",
+          "before": "host",
+          "rule_id": "mapping.tag",
+          "tier": "exact"
+        },
+        {
+          "after": "avg",
+          "before": "avg",
+          "rule_id": "dd.space-agg",
+          "tier": "exact"
+        },
+        {
+          "after": "avg by (host_name) (avg_over_time({otel_metric_name=\"system.mem.pct_usable\"}[5m]))",
+          "before": "avg(last_5m)",
+          "rule_id": "dd.monitor.window.pushdown",
+          "tier": "exact"
+        },
+        {
+          "after": "<",
+          "before": "<",
+          "rule_id": "dd.monitor.comparator.below",
+          "tier": "approximate"
+        },
+        {
+          "after": "failed/degraded",
+          "before": "critical/warning",
+          "rule_id": "dd.monitor.thresholds",
+          "tier": "exact"
+        }
+      ]
+    },
+    {
+      "artifact": "check-rules.json",
+      "enabled": false,
+      "findings": [
+        {
+          "message": "'system.load.norm.1' has no known OpenTelemetry equivalent; it is queried under its Datadog name and will probably show no data until it is mapped",
+          "rule_id": "mapping.unmapped-metric",
+          "source_ref": "monitor:System load is high for host {{host.name}}",
+          "tier": "approximate"
+        },
+        {
+          "message": "not migrated (no Prometheus equivalent): new_host_delay/new_group_delay",
+          "rule_id": "dd.monitor.options-ignored",
+          "source_ref": "monitor:System load is high for host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "message template changed: converted {{value}}/{{host.name}} to Prometheus template syntax (verify the rendering in Dash0)",
+          "rule_id": "dd.monitor.message",
+          "source_ref": "monitor:System load is high for host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "notification handles removed; set up routing in Dash0 manually: @pagerduty-core-systems, @slack-infra, @your-team-handle",
+          "rule_id": "dd.monitor.notify",
+          "source_ref": "monitor:System load is high for host {{host.name}}",
+          "tier": "equivalent"
+        }
+      ],
+      "kind": "monitor",
+      "original": {
+        "created": "2026-11-08T04:36:14.057603+00:00",
+        "created_at": 1794112574000,
+        "creator": {
+          "email": "support-user-prod@datadoghq.com",
+          "handle": "support-scaca-2ehtdwyypdf2",
+          "id": 1017770732,
+          "name": "Datadog Support"
+        },
+        "deleted": null,
+        "draft_status": "published",
+        "id": 130202475,
+        "matching_downtimes": [],
+        "message": "## 🚨 What’s happening\n\nHigh 1-minute load average detected on host {{host.name}}.\n\nThis alert means the system has more processes waiting to run than it can efficiently handle. A high load average often indicates that the host is under significant resource pressure — typically due to CPU saturation, blocked I/O, or memory contention. While some load is normal, consistently high load (especially relative to the number of CPU cores) can signal an unhealthy or overloaded system.\n\n---\n\n## 📈 Impact\n\nIf load remains high, the host may experience:\n\n- Slower system and application performance\n- Backlogged scheduled jobs or delayed processing\n- Increased risk of timeouts, dropped requests, or service degradation\n\nIn environments with strict performance requirements, high load can quickly lead to cascading failures or degraded user experience.\n\n---\n\n## 🛠 How to fix (Runbook)\n\n### 🔍 Initial troubleshooting\n\n1. Identify the affected host from the alert.\n2. Open [**Infrastructure > Host Details**](/infrastructure) for {{host.name}}.\n3. In the **Metrics tab**, examine:\n   - `system.load.1`\n   - `system.cpu.user`, `system.cpu.system`, `system.io.await`, `system.mem.pct_usable`\n4. Use [**Live Processes**](/process) to find CPU- or I/O-heavy processes.\n5. SSH into the host and run:\n   ```bash\n   uptime\n   top -o %CPU\n   \n### Cause and Resolution\n\nCause | Resolution\n------|------\nCPU-bound processes: | Restart or optimize heavy applications\n------|------\nBlocked I/O or memory pressure | Investigate disk or memory bottlenecks\n------|------\nConcurrent workload spikes | Throttle or redistribute jobs across hosts\n------|------\nConfiguration changes | Roll back recent updates or autoscaling settings if related\n\n        \n###  Related links\n\n* [Host Map](/infrastructure/map)\n* [Live Processes](/process?query=host%3A{{host.name}})\n* [System Dashboards](/dashboard/lists)\n* [Monitor Documentation](https://docs.datadoghq.com/monitors/)\n* [Logs](/logs?query=host:{{host.name}})\n* [Infrastructure](/infrastructure/hosts?scope=host:{{host.name}})\n* [Metrics Explorer (system.load.norm.1)](/metric/explorer?exp_metric=system.load.norm.1&exp_scope=host:{{host.name}}&exp_agg=avg&exp_type=line)\n\n### Who should be notified?\n\nAssign the appropriate notification handle for this alert (e.g., `@slack-infra`, `@pagerduty-core-systems`):  \n`@your-team-handle`",
+        "modified": "2026-11-08T04:36:14.057603+00:00",
+        "multi": true,
+        "name": "System load is high for host {{host.name}}",
+        "options": {
+          "include_tags": false,
+          "new_host_delay": 300,
+          "notify_audit": false,
+          "notify_no_data": false,
+          "silenced": {},
+          "thresholds": {
+            "critical": 1.0
+          }
+        },
+        "org_id": 1001024284,
+        "overall_state": "No Data",
+        "overall_state_modified": "2026-11-08T04:36:19+00:00",
+        "priority": null,
+        "query": "avg(last_5m):avg:system.load.norm.1{*} by {host} > 1",
+        "restricted_roles": null,
+        "tags": [
+          "integration:host",
+          "monitor_pack:host"
+        ],
+        "type": "query alert"
+      },
+      "promql": "avg by (host_name) (avg_over_time({otel_metric_name=\"system.load.norm.1\"}[5m])) > $__threshold",
+      "source_ref": "datadog:monitor:130202475",
+      "thresholds": {
+        "failed": 1.0
+      },
+      "tier": "approximate",
+      "title": "System load is high for host {{host.name}}",
+      "trace": [
+        {
+          "after": "system.load.norm.1",
+          "before": "system.load.norm.1",
+          "rule_id": "mapping.unmapped-metric",
+          "tier": "approximate"
+        },
+        {
+          "after": "host_name",
+          "before": "host",
+          "rule_id": "mapping.tag",
+          "tier": "exact"
+        },
+        {
+          "after": "avg",
+          "before": "avg",
+          "rule_id": "dd.space-agg",
+          "tier": "exact"
+        },
+        {
+          "after": "avg by (host_name) (avg_over_time({otel_metric_name=\"system.load.norm.1\"}[5m]))",
+          "before": "avg(last_5m)",
+          "rule_id": "dd.monitor.window.pushdown",
+          "tier": "exact"
+        },
+        {
+          "after": ">",
+          "before": ">",
+          "rule_id": "dd.monitor.comparator",
+          "tier": "exact"
+        },
+        {
+          "after": "failed/degraded",
+          "before": "critical/warning",
+          "rule_id": "dd.monitor.thresholds",
+          "tier": "exact"
+        }
+      ]
+    },
+    {
+      "artifact": "check-rules.json",
+      "enabled": false,
+      "findings": [
+        {
+          "message": "'system.net.bytes_rcvd' has no known OpenTelemetry equivalent; it is queried under its Datadog name and will probably show no data until it is mapped",
+          "rule_id": "mapping.unmapped-metric",
+          "source_ref": "monitor:Network traffic (received) is high on host {{host.name}}",
+          "tier": "approximate"
+        },
+        {
+          "message": "avg(last_15m) averages the query's value over the window; this is evaluated as a PromQL subquery at 1m resolution",
+          "rule_id": "dd.monitor.window.subquery",
+          "source_ref": "monitor:Network traffic (received) is high on host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "not migrated (no Prometheus equivalent): new_host_delay/new_group_delay",
+          "rule_id": "dd.monitor.options-ignored",
+          "source_ref": "monitor:Network traffic (received) is high on host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "message template changed: converted {{value}}/{{host.name}} to Prometheus template syntax (verify the rendering in Dash0)",
+          "rule_id": "dd.monitor.message",
+          "source_ref": "monitor:Network traffic (received) is high on host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "notification handles removed; set up routing in Dash0 manually: @pagerduty-platform-oncall, @slack-networking, @your-team-handle",
+          "rule_id": "dd.monitor.notify",
+          "source_ref": "monitor:Network traffic (received) is high on host {{host.name}}",
+          "tier": "equivalent"
+        }
+      ],
+      "kind": "monitor",
+      "original": {
+        "created": "2026-11-08T04:36:14.184438+00:00",
+        "created_at": 1794112574000,
+        "creator": {
+          "email": "support-user-prod@datadoghq.com",
+          "handle": "support-scaca-2ehtdwyypdf2",
+          "id": 1017770732,
+          "name": "Datadog Support"
+        },
+        "deleted": null,
+        "draft_status": "published",
+        "id": 130202476,
+        "matching_downtimes": [],
+        "message": "## 🚨 What's happening\n\nHigh **incoming network traffic** detected on host {{host.name}}.\n\nThis means the host is receiving a sustained high volume of data — with the 15-minute average of `system.net.bytes_rcvd` exceeding **80 MB/min**. This typically indicates heavy data ingestion, large transfers, or inefficient service communication patterns.\n\n***\n\n## 📈 Impact\n\nIf network traffic remains elevated, it can lead to:\n\n-   **Bandwidth saturation**, packet loss, or throttling\n-   **Latency or degraded performance** in network-bound services\n-   **Slow log shipping**, delayed data pipelines, or failed syncs\n-   **Contended resources** in multi-tenant environments (e.g., containers)\n\nThis may impact the host's ability to serve real-time workloads or maintain timely communication with external systems, APIs, or databases.\n\n***\n\n## 🛠️ Runbook\n\n### Initial Troubleshooting Steps\n\n1.  **Identify the affected host** from the alert.\n\n2.  Open [**Infrastructure > Host Details**](/infrastructure) in Datadog.\n\n3.  In the **Metrics** tab, examine:\n\n    -   `system.net.bytes_rcvd`, `system.net.bytes_sent`\n    -   Interface metrics (`system.net.iface.*`)\n\n4.  Check application logs for unexpected ingest behavior.\n\n5.  Use tools like `iftop`, `nload`, or `netstat` to inspect top inbound connections.\n\n6.  (If needed) SSH into the host and run:\n\n    ```\n    bash\n    CopyEdit\n    sudo iftop -i <interface>\n    ```\n\n***\n\n### Cause and Resolution\n\n| Cause                                           | Resolution                                                  |\n| ----------------------------------------------- | ----------------------------------------------------------- |\n| Large file transfers (e.g., backups, ingestion) | Schedule during off-peak hours or limit transfer rate       |\n| Misconfigured agents or services                | Review configs and reduce polling or payload size           |\n| Unexpected traffic spike or DDoS                | Block IPs, apply rate limits, or enable network protections |\n| Log/metric flooding from other systems          | Throttle integrations or export rates                       |\n\n***\n\n### 🔗 Related links\n\n-   [Host Map](/infrastructure/map)\n-   [Live Processes](/process)\n-   [System Dashboards](/dashboard/lists)\n-   [Monitor Documentation](https://docs.datadoghq.com/monitors/)\n-   [Logs](/logs?query=host:{{host.name}})\n-   [Infrastructure](/infrastructure/hosts?scope=host:{{host.name}})\n-   [Metrics Explorer (system.net.bytes_rcvd)](/metric/explorer?exp_metric=system.net.bytes_rcvd&exp_scope=host:{{host.name}}&exp_agg=avg&exp_type=line)\n\n***\n\n### 📣 Who should be notified?\n\nPlease assign the appropriate notification handle for this alert (e.g., `@slack-networking`, `@pagerduty-platform-oncall`):\\\n`@your-team-handle`",
+        "modified": "2026-11-08T04:36:14.184438+00:00",
+        "multi": true,
+        "name": "Network traffic (received) is high on host {{host.name}}",
+        "options": {
+          "include_tags": false,
+          "new_host_delay": 300,
+          "notify_audit": false,
+          "notify_no_data": false,
+          "silenced": {},
+          "thresholds": {
+            "critical": 0.08
+          }
+        },
+        "org_id": 1001024284,
+        "overall_state": "No Data",
+        "overall_state_modified": "2026-11-08T04:36:24+00:00",
+        "priority": null,
+        "query": "avg(last_15m):avg:system.net.bytes_rcvd{*} by {host} / (1024 * 1024 * 1024) > 0.08",
+        "restricted_roles": null,
+        "tags": [
+          "integration:host",
+          "monitor_pack:host"
+        ],
+        "type": "query alert"
+      },
+      "promql": "avg_over_time((avg by (host_name) ({otel_metric_name=\"system.net.bytes_rcvd\"}) / (1024 * 1024 * 1024))[15m:1m]) > $__threshold",
+      "source_ref": "datadog:monitor:130202476",
+      "thresholds": {
+        "failed": 0.08
+      },
+      "tier": "approximate",
+      "title": "Network traffic (received) is high on host {{host.name}}",
+      "trace": [
+        {
+          "after": "system.net.bytes_rcvd",
+          "before": "system.net.bytes_rcvd",
+          "rule_id": "mapping.unmapped-metric",
+          "tier": "approximate"
+        },
+        {
+          "after": "host_name",
+          "before": "host",
+          "rule_id": "mapping.tag",
+          "tier": "exact"
+        },
+        {
+          "after": "avg",
+          "before": "avg",
+          "rule_id": "dd.space-agg",
+          "tier": "exact"
+        },
+        {
+          "after": "*",
+          "before": "*",
+          "rule_id": "dd.arith.scalar",
+          "tier": "exact"
+        },
+        {
+          "after": "*",
+          "before": "*",
+          "rule_id": "dd.arith.scalar",
+          "tier": "exact"
+        },
+        {
+          "after": "/",
+          "before": "/",
+          "rule_id": "dd.arith.scalar",
+          "tier": "exact"
+        },
+        {
+          "after": "avg_over_time((avg by (host_name) ({otel_metric_name=\"system.net.bytes_rcvd\"}) / (1024 * 1024 * 1024))[15m:1m])",
+          "before": "avg(last_15m)",
+          "rule_id": "dd.monitor.window.subquery",
+          "tier": "equivalent"
+        },
+        {
+          "after": ">",
+          "before": ">",
+          "rule_id": "dd.monitor.comparator",
+          "tier": "exact"
+        },
+        {
+          "after": "failed/degraded",
+          "before": "critical/warning",
+          "rule_id": "dd.monitor.thresholds",
+          "tier": "exact"
+        }
+      ]
+    },
+    {
+      "artifact": "check-rules.json",
+      "enabled": false,
+      "findings": [
+        {
+          "message": "'system.cpu.idle' has no known OpenTelemetry equivalent; it is queried under its Datadog name and will probably show no data until it is mapped",
+          "rule_id": "mapping.unmapped-metric",
+          "source_ref": "monitor:CPU usage is high for host {{host.name}}",
+          "tier": "approximate"
+        },
+        {
+          "message": "avg(last_5m) averages the query's value over the window; this is evaluated as a PromQL subquery at 1m resolution",
+          "rule_id": "dd.monitor.window.subquery",
+          "source_ref": "monitor:CPU usage is high for host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "not migrated (no Prometheus equivalent): new_host_delay/new_group_delay",
+          "rule_id": "dd.monitor.options-ignored",
+          "source_ref": "monitor:CPU usage is high for host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "message template changed: converted {{value}}/{{host.name}} to Prometheus template syntax (verify the rendering in Dash0)",
+          "rule_id": "dd.monitor.message",
+          "source_ref": "monitor:CPU usage is high for host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "notification handles removed; set up routing in Dash0 manually: @pagerduty-core-systems, @slack-infra, @your-team-handle",
+          "rule_id": "dd.monitor.notify",
+          "source_ref": "monitor:CPU usage is high for host {{host.name}}",
+          "tier": "equivalent"
+        }
+      ],
+      "kind": "monitor",
+      "original": {
+        "created": "2026-11-08T04:36:14.312743+00:00",
+        "created_at": 1794112574000,
+        "creator": {
+          "email": "support-user-prod@datadoghq.com",
+          "handle": "support-scaca-2ehtdwyypdf2",
+          "id": 1017770732,
+          "name": "Datadog Support"
+        },
+        "deleted": null,
+        "draft_status": "published",
+        "id": 130202477,
+        "matching_downtimes": [],
+        "message": "## 🚨 What’s happening\n\nHigh CPU usage detected on host {{host.name}}.\n\nThis means the host is spending most of its time actively processing, with very little idle CPU capacity available. It typically signals that the system is under heavy load — either from intense workloads, misbehaving processes, or increased traffic.\n\n---\n\n## 📈 Impact\n\nIf CPU usage remains high over time, it can lead to:\n\n- Sluggish application and system performance\n- Delayed or stalled background jobs\n- Timeouts, degraded services, or crashes due to resource exhaustion\n\nThis may affect critical applications running on this host and lead to broader service degradation if not addressed promptly.\n\n---\n\n## Runbook\n\n### Initial Troubleshooting Steps\n\n1. **Identify the affected host** from the alert.\n2. Open [**Infrastructure > Host Details**](/infrastructure?tags=host%3A{{host.name}}) in Datadog.\n3. In the **Metrics** tab, examine:\n   - `system.cpu.user`, `system.cpu.system`, `system.cpu.idle`\n   - `process.cpu.total_pct`, `process.*` metrics\n4. Use [**Live Processes**](/process?query=host%3A{{host.name}}) to view real-time CPU usage.\n5. SSH into the host (if needed) and run:\n   ```bash\n   top -o %CPU\n   \n### Cause and Resolution\n\nCause | Resolution\n------|------\nRunaway processes | **Restart or stop** high-CPU processes if they’re stuck or misbehaving.\n------|------\nTraffic/load spike | Scale out or up the infrastructure\n------|------\nCode/deployment issue | Roll back recent changes or investigate further.\n------|------\nContainer/JVM misconfiguration | Tune resource limits and runtime settings\n        \n###  Related links\n\n* [Host Map](/infrastructure/map)\n* [Live Processes](/process?query=host%3A{{host.name}})\n* [System Dashboards](/dashboard/lists)\n* [Monitor Documentation](https://docs.datadoghq.com/monitors/)\n* [Logs](/logs?query=host:{{host.name}})\n* [Infrastructure](/infrastructure/hosts?scope=host:{{host.name}})\n* [Metrics Explorer (system.cpu.idle)](/metric/explorer?exp_metric=system.cpu.idle&exp_scope=host:{{host.name}}&exp_agg=avg&exp_type=line)\n\n### Who should be notified?\n\nAssign the appropriate notification handle for this alert (e.g., `@slack-infra`, `@pagerduty-core-systems`):  \n`@your-team-handle`",
+        "modified": "2026-11-08T04:36:14.312743+00:00",
+        "multi": true,
+        "name": "CPU usage is high for host {{host.name}}",
+        "options": {
+          "include_tags": false,
+          "new_host_delay": 300,
+          "notify_audit": false,
+          "notify_no_data": false,
+          "silenced": {},
+          "thresholds": {
+            "critical": 90.0
+          }
+        },
+        "org_id": 1001024284,
+        "overall_state": "No Data",
+        "overall_state_modified": "2026-11-08T04:36:24+00:00",
+        "priority": null,
+        "query": "avg(last_5m):100 - avg:system.cpu.idle{*} by {host} > 90",
+        "restricted_roles": null,
+        "tags": [
+          "integration:host",
+          "monitor_pack:host"
+        ],
+        "type": "query alert"
+      },
+      "promql": "avg_over_time((100 - avg by (host_name) ({otel_metric_name=\"system.cpu.idle\"}))[5m:1m]) > $__threshold",
+      "source_ref": "datadog:monitor:130202477",
+      "thresholds": {
+        "failed": 90.0
+      },
+      "tier": "approximate",
+      "title": "CPU usage is high for host {{host.name}}",
+      "trace": [
+        {
+          "after": "system.cpu.idle",
+          "before": "system.cpu.idle",
+          "rule_id": "mapping.unmapped-metric",
+          "tier": "approximate"
+        },
+        {
+          "after": "host_name",
+          "before": "host",
+          "rule_id": "mapping.tag",
+          "tier": "exact"
+        },
+        {
+          "after": "avg",
+          "before": "avg",
+          "rule_id": "dd.space-agg",
+          "tier": "exact"
+        },
+        {
+          "after": "-",
+          "before": "-",
+          "rule_id": "dd.arith.scalar",
+          "tier": "exact"
+        },
+        {
+          "after": "avg_over_time((100 - avg by (host_name) ({otel_metric_name=\"system.cpu.idle\"}))[5m:1m])",
+          "before": "avg(last_5m)",
+          "rule_id": "dd.monitor.window.subquery",
+          "tier": "equivalent"
+        },
+        {
+          "after": ">",
+          "before": ">",
+          "rule_id": "dd.monitor.comparator",
+          "tier": "exact"
+        },
+        {
+          "after": "failed/degraded",
+          "before": "critical/warning",
+          "rule_id": "dd.monitor.thresholds",
+          "tier": "exact"
+        }
+      ]
+    },
+    {
+      "artifact": "check-rules.json",
+      "enabled": false,
+      "findings": [
+        {
+          "message": "'system.net.bytes_sent' has no known OpenTelemetry equivalent; it is queried under its Datadog name and will probably show no data until it is mapped",
+          "rule_id": "mapping.unmapped-metric",
+          "source_ref": "monitor:Network traffic (sent) is high on host {{host.name}}",
+          "tier": "approximate"
+        },
+        {
+          "message": "avg(last_15m) averages the query's value over the window; this is evaluated as a PromQL subquery at 1m resolution",
+          "rule_id": "dd.monitor.window.subquery",
+          "source_ref": "monitor:Network traffic (sent) is high on host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "not migrated (no Prometheus equivalent): new_host_delay/new_group_delay",
+          "rule_id": "dd.monitor.options-ignored",
+          "source_ref": "monitor:Network traffic (sent) is high on host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "message template changed: converted {{value}}/{{host.name}} to Prometheus template syntax (verify the rendering in Dash0)",
+          "rule_id": "dd.monitor.message",
+          "source_ref": "monitor:Network traffic (sent) is high on host {{host.name}}",
+          "tier": "equivalent"
+        },
+        {
+          "message": "notification handles removed; set up routing in Dash0 manually: @pagerduty-platform-oncall, @slack-networking, @your-team-handle",
+          "rule_id": "dd.monitor.notify",
+          "source_ref": "monitor:Network traffic (sent) is high on host {{host.name}}",
+          "tier": "equivalent"
+        }
+      ],
+      "kind": "monitor",
+      "original": {
+        "created": "2026-11-08T04:36:14.440271+00:00",
+        "created_at": 1794112574000,
+        "creator": {
+          "email": "support-user-prod@datadoghq.com",
+          "handle": "support-scaca-2ehtdwyypdf2",
+          "id": 1017770732,
+          "name": "Datadog Support"
+        },
+        "deleted": null,
+        "draft_status": "published",
+        "id": 130202478,
+        "matching_downtimes": [],
+        "message": "## 🚨 What's happening\n\nHigh outgoing network traffic detected on host {{host.name}}.\n\nThis means the host is sending a sustained high volume of data — with the 15-minute average of `system.net.bytes_sent` exceeding **80 MB/min**. This typically points to large data exports, logging spikes, backup activity, or misconfigured services.\n\n***\n\n## 📈 Impact\n\nIf network traffic remains elevated, it can lead to:\n\n-   **Bandwidth saturation**, resulting in packet loss or throttling\n-   **Degraded performance** for outbound services like APIs, exporters, or clients\n-   **Delays in data processing**, backups, or inter-service communication\n-   **Resource contention** on shared hosts or virtualized environments\n\nThis may prevent the host from reliably transmitting time-sensitive or critical data, potentially impacting service-level objectives.\n\n***\n\n## Runbook\n\n### Initial Troubleshooting Steps\n\n1.  **Identify the affected host** from the alert.\n\n2.  Open [**Infrastructure > Host Details**](/infrastructure) in Datadog.\n\n3.  In the **Metrics** tab, examine:\n\n    -   `system.net.bytes_sent`, `system.net.bytes_rcvd`\n    -   Interface metrics (`system.net.iface.*`)\n\n4.  Check application logs or exporters for spikes in outbound traffic.\n\n5.  Use tools like `iftop`, `nload`, or `netstat` to inspect top outbound connections.\n\n6.  (If needed) SSH into the host and run:\n\n    ```\n    bash\n    CopyEdit\n    sudo iftop -i <interface>\n    ```\n\n### Cause and Resolution\n\n| Cause                                            | Resolution                                      |\n| ------------------------------------------------ | ----------------------------------------------- |\n| Large data exports (e.g., backups, log shipping) | Schedule exports off-peak or throttle bandwidth |\n| Misconfigured services flooding traffic          | Review configs and reduce payloads or frequency |\n| Traffic spike from application behavior          | Add caching or batching; review architecture    |\n| Third-party abuse or unintended syncs            | Audit external endpoints and restrict access    |\n\n***\n\n### Related links\n\n-   [Host Map](/infrastructure/map)\n-   [Live Processes](/process)\n-   [System Dashboards](/dashboard/lists)\n-   [Monitor Documentation](https://docs.datadoghq.com/monitors/)\n-   [Logs](/logs?query=host:{{host.name}})\n-   [Infrastructure](/infrastructure/hosts?scope=host:{{host.name}})\n-   [Metrics Explorer (system.net.bytes_sent)](/metric/explorer?exp_metric=system.net.bytes_sent&exp_scope=host:{{host.name}}&exp_agg=avg&exp_type=line)\n\n***\n\n### Who should be notified?\n\nPlease assign the appropriate notification handle for this alert (e.g., `@slack-networking`, `@pagerduty-platform-oncall`):\\\n`@your-team-handle`",
+        "modified": "2026-11-08T04:36:14.440271+00:00",
+        "multi": true,
+        "name": "Network traffic (sent) is high on host {{host.name}}",
+        "options": {
+          "include_tags": false,
+          "new_host_delay": 300,
+          "notify_audit": false,
+          "notify_no_data": false,
+          "silenced": {},
+          "thresholds": {
+            "critical": 0.08
+          }
+        },
+        "org_id": 1001024284,
+        "overall_state": "No Data",
+        "overall_state_modified": "2026-11-08T04:36:19+00:00",
+        "priority": null,
+        "query": "avg(last_15m):avg:system.net.bytes_sent{*} by {host} / (1024 * 1024 * 1024) > 0.08",
+        "restricted_roles": null,
+        "tags": [
+          "integration:host",
+          "monitor_pack:host"
+        ],
+        "type": "query alert"
+      },
+      "promql": "avg_over_time((avg by (host_name) ({otel_metric_name=\"system.net.bytes_sent\"}) / (1024 * 1024 * 1024))[15m:1m]) > $__threshold",
+      "source_ref": "datadog:monitor:130202478",
+      "thresholds": {
+        "failed": 0.08
+      },
+      "tier": "approximate",
+      "title": "Network traffic (sent) is high on host {{host.name}}",
+      "trace": [
+        {
+          "after": "system.net.bytes_sent",
+          "before": "system.net.bytes_sent",
+          "rule_id": "mapping.unmapped-metric",
+          "tier": "approximate"
+        },
+        {
+          "after": "host_name",
+          "before": "host",
+          "rule_id": "mapping.tag",
+          "tier": "exact"
+        },
+        {
+          "after": "avg",
+          "before": "avg",
+          "rule_id": "dd.space-agg",
+          "tier": "exact"
+        },
+        {
+          "after": "*",
+          "before": "*",
+          "rule_id": "dd.arith.scalar",
+          "tier": "exact"
+        },
+        {
+          "after": "*",
+          "before": "*",
+          "rule_id": "dd.arith.scalar",
+          "tier": "exact"
+        },
+        {
+          "after": "/",
+          "before": "/",
+          "rule_id": "dd.arith.scalar",
+          "tier": "exact"
+        },
+        {
+          "after": "avg_over_time((avg by (host_name) ({otel_metric_name=\"system.net.bytes_sent\"}) / (1024 * 1024 * 1024))[15m:1m])",
+          "before": "avg(last_15m)",
+          "rule_id": "dd.monitor.window.subquery",
+          "tier": "equivalent"
+        },
+        {
+          "after": ">",
+          "before": ">",
+          "rule_id": "dd.monitor.comparator",
+          "tier": "exact"
+        },
+        {
+          "after": "failed/degraded",
+          "before": "critical/warning",
+          "rule_id": "dd.monitor.thresholds",
+          "tier": "exact"
+        }
+      ]
+    }
+  ],
+  "source": {
+    "kind": "datadog",
+    "mode": "api",
+    "site": "datadoghq.eu"
+  },
+  "summary": {
+    "dashboards": 1,
+    "monitors": 7,
+    "monitors_enabled": 0,
+    "panels": {
+      "approximate": 0,
+      "equivalent": 0,
+      "exact": 0,
+      "manual": 0
+    },
+    "skipped": []
+  },
+  "validation": {
+    "promtool": {
+      "checked": 6,
+      "errors": {},
+      "ran": true,
+      "reason": ""
+    },
+    "structure": {}
+  },
+  "version": 1
+}

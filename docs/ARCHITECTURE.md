@@ -2,28 +2,31 @@
 
 Design goal: **the simplest pipeline that is deterministic, explainable, and actually imports into Dash0.** Delivery speed comes before extensibility. We keep a small IR because the brief asks for one and because it keeps the parser separate from the generators. There is no plugin system and no abstract base classes until a second vendor exists.
 
+**Implementation status:** `init`, `config`, `discover` and `plan` are built and tested (133 tests). `apply` and `explain` are not. Nothing has been imported into Dash0 yet, so everything under "Dash0 integration" is from its documentation.
+
 ## Pipeline
 
 ```
  Datadog API ─┐
  JSON files  ─┴─► sources/datadog ──► IR (Dashboard, Panel, AlertRule, query Expr)
-                   │  widgets.py / monitors.py   structure
+                   │  widgets.py / monitors.py   structure, layout, variables
                    │  query_parser.py            DD query string → DD AST
                    │  lower.py + mappings/       DD AST → IR Expr   ← tiers, findings, trace
                    ▼
-                validate.py   structure · promtool · Dash0 limits
-                   ▼
                 targets/      promql.py · perses.py · dash0_rules.py
                    ▼
+                validate.py   structure · rule schema          (pure)
+                promtool.py   PromQL syntax via Docker         (CLI only)
+                   ▼
                 ./migration/  perses/*.json · check-rules.json · plan.json · migration.log
-                   ▼  (openborder apply)
+                   ▼  (openborder apply — not built yet)
                 dash0_client.py ──► POST /api/import/dashboard (one per dashboard)
                                     POST /api/import/check-rules (one atomic batch)
 ```
 
-`plan` runs every stage except the last. `apply` reads only `./migration/`. It never re-translates, so what you reviewed is exactly what gets imported.
+`plan` runs every stage except the last. `apply` will read only `./migration/`. It must never re-translate, so what you reviewed is exactly what gets imported.
 
-**The core is a pure library.** `openborder.core.plan(dashboards: list[dict], monitors: list[dict], options) -> Plan` runs in memory. It takes raw Datadog JSON and returns the artifacts as `{relative_path: bytes}` plus the findings. It does no disk, environment, network, or Docker access. The CLI is a thin shell around it: it fetches inputs, calls the core, and writes or imports the result. This keeps the core easy to test, and it means a GUI could reuse it later (see [Future: GUI](#future-gui)).
+**The core is a pure library.** `openborder.core.plan(dashboards, monitors, options, skipped)` runs in memory: raw Datadog JSON in, artifacts as `{relative_path: bytes}` plus findings out. It does no disk, environment, network or Docker access, which is why `promtool.py` (Docker) and `config.py` (environment) are separate modules that `core` never imports. The CLI is a thin shell: it fetches inputs, calls the core, runs `promtool`, writes the files and prints the report. This keeps the core easy to test, and a GUI could reuse it later (see [Future: GUI](#future-gui)).
 
 ## Package layout
 
@@ -31,198 +34,173 @@ Design goal: **the simplest pipeline that is deterministic, explainable, and act
 cli/                         # all CLI logic lives here; run from this directory
   requirements.txt
   openborder/                # the Python package → `python -m openborder <command>`
-    __main__.py              # entry point
-    core.py                  # pure entry points: plan(), explain(); no I/O
-    cli.py                   # CLI shell: init, config, discover, plan, apply, explain
+    __main__.py              # entry point (forces UTF-8 output so tier symbols never crash a Windows console)
+    cli.py                   # CLI shell: init, config, discover, plan (apply, explain: stubs)
+    core.py                  # pure: plan() and render_plan_json(); no I/O
+    ir.py                    # IR (frozen dataclasses): Tier, Finding, TraceStep, Expr nodes, Panel, Dashboard, AlertRule
+    ids.py                   # stable_id() (uuid5) and slug(): the only source of identifiers
     config.py                # credentials/settings in cli/.env (shell-side; never imported by core)
-    ir.py                    # all IR models (pydantic)
+    report.py                # Rich output: plan tree, coverage, monitors, findings-by-rule, validation
+    validate.py              # pure: dashboard structure checks, pydantic model of the check-rule body
+    promtool.py              # `promtool check rules` via Docker (CLI only)
+    mappings/
+      __init__.py            # load_mappings(): merges every datadog/*.yaml
+      datadog/redis.yaml     # metric + tag mapping with cited evidence
     sources/datadog/
-      client.py              # Datadog API (httpx), read-only: list dashboards/monitors (get-by-id comes with `plan`)
-      files.py               # load exported JSON
-      query_parser.py        # hand-written recursive-descent parser → DD AST
-      lower.py               # DD AST → IR Expr; one function per rule id
-      widgets.py             # DD widget/layout/template vars → IR Panel/Variable
-      monitors.py            # DD monitor → IR AlertRule
-    mappings/datadog/redis.yaml
+      client.py              # Datadog API (httpx), read-only: list/get dashboards, list monitors
+      files.py               # load exported JSON from a folder
+      query_parser.py        # hand-written tokenizer + recursive-descent parser → Datadog AST
+      lower.py               # Datadog AST → IR Expr; one rule per rule_id (see COMPATIBILITY.md)
+      widgets.py             # dashboard JSON → IR (widgets, groups, layout, template variables)
+      monitors.py            # monitor JSON → IR AlertRule (window, thresholds, message, options)
     targets/
-      promql.py              # IR Expr → PromQL string (only place that emits PromQL text)
-      perses.py              # IR Dashboard → Perses JSON (Dash0 dialect)
-      dash0_rules.py         # IR AlertRule → PrometheusAlertRule JSON
-    validate.py
-    dash0_client.py
-    report.py                # Rich tree, coverage score, migration.log
+      promql.py              # IR Expr → PromQL string (the only place that emits PromQL)
+      perses.py              # IR Dashboard → Dash0 dashboard import body
+      dash0_rules.py         # IR AlertRule → Dash0 check-rule import body
   tests/
-    golden/                  # *.dd.txt → *.promql, dashboards/*.dd.json → *.perses.json
-demo/                        # docker-compose: redis, load generator, otel-collector (repo root)
+    conftest.py              # autouse isolation (temp cwd, no credentials) + golden-file helper
+    fixtures/datadog/redisdb # the real Redis dashboard and monitor from integrations-core
+    golden/redis/            # expected artifacts for those fixtures
+demo/                        # docker-compose: redis, load generator, otel-collector (not built yet)
 ```
 
-`backend/` and `frontend/` folders are reserved for a possible GUI later. They don't exist yet.
+`backend/` and `frontend/` folders are reserved for a possible GUI later. They don't exist.
 
 ## IR
 
-The query IR is deliberately **PromQL-shaped**. PromQL is the only target, so a "neutral" query algebra would be over-engineering. Future source adapters lower into the same nodes.
+Frozen dataclasses (nothing is parsed from untrusted input into them, so there is nothing for a validation library to do). The query IR is deliberately **PromQL-shaped**: PromQL is the only target, so a neutral query algebra would be over-engineering.
 
 ```python
-class Tier(IntEnum):            # ordered: worst() = max()
-    EXACT = 0; EQUIVALENT = 1; APPROXIMATE = 2; MANUAL = 3
+class Tier(IntEnum): EXACT=0; EQUIVALENT=1; APPROXIMATE=2; MANUAL=3     # worst of several = max()
 
-class Finding(BaseModel):
-    tier: Tier
-    rule_id: str                # e.g. "dd.fn.top", "mapping.unmapped-metric"
-    message: str                # human explanation of the difference
-    source_ref: str             # e.g. "dashboard:abc/widget:123/query1"
+Finding(tier, rule_id, message, source_ref)          # something the user must know about
+TraceStep(rule_id, tier, before, after)              # every rule that ran, exact ones included; feeds `explain`
 
-class TraceStep(BaseModel):     # powers `openborder explain`
-    rule_id: str; tier: Tier; before: str; after: str
+# query expressions
+Selector(metric, matchers, offset)   RangeFn(fn, arg, window)   Subquery(arg, range, step)
+Aggregate(op, by, arg, param)        BinOp(op, lhs, rhs, on, group)   Call(fn, args)
+Number(value)                        Placeholder(text)      # e.g. $__threshold
 
-# --- query expressions ---
-Matcher(label, op: Literal["=", "!=", "=~", "!~"], value)
-Selector(metric: str, matchers: list[Matcher])          # → {otel_metric_name="…", …}
-RangeFn(fn: str, arg: Expr, window: str)                 # rate/increase/avg_over_time…; window may be "$__rate_interval"
-Subquery(arg: Expr, range: str, step: str | None)
-Aggregate(op: str, by: list[str], arg: Expr, param: Expr | None)   # sum/avg/min/max/topk…
-BinOp(op: str, lhs: Expr, rhs: Expr, on: list[str] | None)
-Call(fn: str, args: list[Expr])                          # abs, clamp_min, log10…
-Offset(arg: Expr, duration: str)
-Number(value: float)
-
-class Translation(BaseModel):   # result of lowering one DD query/formula
-    expr: Expr | None           # None ⇔ tier == MANUAL
-    tier: Tier                  # worst tier over findings
-    findings: list[Finding]
-    trace: list[TraceStep]
-    original: str
-
-# --- structure ---
-GridPos(x, y, w, h)                                      # already in Perses 24-col units
-Panel(key, title, description, kind, queries: list[Translation], grid, options, tier, findings, original: dict)
-Section(title, collapsed, panel_keys)                    # from DD group widgets
-Variable(name, label, label_name, default, allow_all, allow_multiple, tier, findings)
-Dashboard(source_id, title, description, variables, panels, sections, findings, original: dict)
-AlertRule(source_id, name, expr, thresholds: {degraded, failed}, interval, for_, keep_firing_for,
-          labels, annotations, enabled, tier, findings, original: dict)
+Translation(expr | None, findings, trace, original)  # one Datadog query or formula; tier = worst finding
+Panel(key, title, kind, grid, queries, options, findings, trace, original, source_queries, placeholder)
+Section(title, panels)   Variable(name, label, default, findings)   Dashboard(..., sections, findings, original)
+AlertRule(source_id, name, expr, thresholds, interval, labels, annotations, findings, trace, original, enabled)
 ```
 
 Rules:
-- `original` is always the untouched source JSON or string. Generators copy references to it into their output.
-- Tiers move upward only: a node's tier is the worst tier among its children and findings.
-- Translation problems are **findings, not exceptions** (see [CONTRIBUTING.md](../CONTRIBUTING.md#error-handling)).
+- `original` is the untouched source JSON or string. It ends up in `plan.json`.
+- A node's tier is the worst tier among its findings. A rule with tier ✓ records a trace step but no finding.
+- Translation problems are **findings, not exceptions**. A MANUAL finding means `expr` is `None`.
+- A formula's `Translation` holds only the findings of the formula itself. The queries it references keep their own findings, and a panel's findings are the union of all of them.
 
 ## Query translation
 
 Three stages, each testable on its own:
 
-1. **Parse** (`query_parser.py`): a Datadog query string becomes a Datadog AST, kept close to Datadog's grammar: space aggregation, metric, tag filter (including `$var`, wildcards, `!`, `OR`/`IN`), `by {}`, method chain (`.rollup()`, `.as_rate()`, `.as_count()`, `.fill()`), functions, arithmetic, and `queryN` references in formulas. A parse error becomes a ✗ finding that records the error position.
-2. **Lower** (`lower.py`): the Datadog AST becomes an IR expression. **This is the only place semantics are decided.** Each rule is a small function with a fixed `rule_id` and tier. It appends a `TraceStep`, and a `Finding` when the tier is above exact. The metric and tag mapping is applied here.
-3. **Print** (`targets/promql.py`): the IR expression becomes PromQL text with minimal, deterministic parentheses.
+1. **Parse** (`query_parser.py`): tokenizer plus recursive descent into a Datadog-shaped AST: metric queries (space aggregator, metric, tag filters, `by {}`, method chain), formulas (`queryN` references, arithmetic, functions, unary minus), and monitor queries (`avg|max|min|sum(last_N<unit>):<query> <comparator> <number>`). Filters it doesn't understand (`OR`, bare tags) are kept as `RawFilter` so the lowering can refuse them explicitly instead of dropping them. Parse errors carry a position.
+2. **Lower** (`lower.py`): the Datadog AST becomes an IR expression. **This is the only place semantics are decided.** Every rule has a fixed `rule_id` and tier, calls `Recorder.step()`, and raises `Unsupported` for anything it cannot translate. `translate()` never raises: parse errors and `Unsupported` become a MANUAL finding for that query only.
+3. **Print** (`targets/promql.py`): the IR becomes PromQL text with the minimum parentheses that preserve the AST.
 
-Worked example (Redis - Overview, "Keyspace hits"):
+Worked example (`avg:redis.stats.keyspace_hits{$scope,$host}` in a dashboard whose `host` variable has prefix `host`):
 
 ```
-DD:      avg:redis.stats.keyspace_hits{$scope,$host}
-AST:     Query(space_agg=avg, metric=redis.stats.keyspace_hits, filters=[Var(scope), Var(host)])
-trace:   mapping.metric        ✓  redis.stats.keyspace_hits → redis.keyspace.hits
-         mapping.transform     ≈  DD per-second gauge ↔ OTel cumulative counter → rate()
-         dd.var.prefixed       ✓  $host → host_name=~"$host"
-         dd.var.free-scope     ~  $scope has no tag prefix; dropped (default view unchanged)
-         dd.space-agg          ✓  avg → avg()
-PromQL:  avg(rate({otel_metric_name="redis.keyspace.hits", host_name=~"$host"}[$__rate_interval]))
+mapping.metric            ✓  redis.stats.keyspace_hits → redis.keyspace.hits
+mapping.transform.rate    ≈  Datadog reports a per-second rate; OTel exports a cumulative counter → rate()
+dd.var.free-scope         ✓  $scope dropped (default is *; reported once on the dashboard)
+mapping.tag               ✓  host → host_name
+dd.var.prefixed           ✓  $host → host_name=~"$host"
+dd.space-agg              ✓  avg
+→ avg(rate({otel_metric_name="redis.keyspace.hits", host_name=~"$host"}[$__rate_interval]))     tier ≈
 ```
+
+Context differences: in a **dashboard** the rate window is `$__rate_interval`, auto rollups use `$__interval`, and `top()` uses `$__range`. In a **monitor** (a Prometheus rule has no such variables) the rate window is the monitor's own window, rollups use `1m`, and `top()` is unavailable.
 
 ### Mapping files
 
-The mapping is **data, not code**. `metric_type` in Datadog's `metadata.csv` is not enough: 270 of the 271 Redis metrics are labelled `gauge`, including per-second rates. So each entry states its transform explicitly.
+The mapping is **data, not code**. `metric_type` in Datadog's `metadata.csv` is unusable for deciding whether a transform is needed (270 of 271 Redis metrics are labelled `gauge`, rates included), so each entry's `transform` comes from the integration's source code and is cited in the YAML.
 
 ```yaml
-integration: redis
-otel_receiver: redisreceiver          # opentelemetry-collector-contrib
-tags:                                 # DD tag key → Dash0 PromQL label
+tags:                                  # Datadog tag → label on the OTel series in Dash0 PromQL
   host: host_name
 metrics:
-  redis.mem.used:
-    otel: redis.memory.used
-    transform: none                   # none | rate | increase
-    tier: exact
-  redis.stats.keyspace_hits:
-    otel: redis.keyspace.hits
-    transform: rate
-    tier: equivalent
-    note: DD agent reports a per-second rate; OTel exports a cumulative counter.
-  redis.cpu.sys:
-    otel: redis.cpu.time
-    matchers: {state: sys}
-    transform: rate
-    tier: equivalent
-  redis.info.latency_ms:
-    otel: null                        # no OTel equivalent → mapping.unmapped-metric (~)
+  redis.mem.used:        {otel: redis.memory.used}                                # transform: none
+  redis.keys.evicted:    {otel: redis.keys.evicted}                               # raw total → no rate()
+  redis.stats.keyspace_hits: {otel: redis.keyspace.hits, transform: rate}         # per-second rate → rate()
+  redis.cpu.sys:         {otel: redis.cpu.time, matchers: {state: sys}, transform: rate}
+  redis.info.latency_ms: {otel: null}                                             # no counterpart → ~
 ```
 
-Unmapped metrics pass through as `{otel_metric_name="<datadog name>"}` with an `approximate` finding. The panel stays structurally correct but will probably show no data, and the report says so.
+Unmapped metrics pass through under their Datadog name with a ~ finding: the panel is structurally correct but will probably show no data, and the report says so. Full table: [COMPATIBILITY.md](COMPATIBILITY.md#redis-metric-mapping-datadog--otel-redisreceiver).
 
 ## Dashboards → Perses
 
-- **Layout:** Datadog's 12-column `ordered` grid becomes Perses's 24-column `Grid` (x and width ×2). Datadog `group` widgets become Perses grid sections with a title. The height scale is calibrated in the spike.
-- **Template variables:** `$host` (prefix `host`) becomes a Perses `ListVariable` using `PrometheusLabelValuesVariable` on the mapped label, with "allow all" mapped to `.*`. In queries, `{$host}` becomes `host_name=~"$host"`.
-- **Widgets:** see [COMPATIBILITY.md](COMPATIBILITY.md#widgets). Untranslatable widgets become a `Markdown` placeholder in the same grid position. It contains the tier, the reason, and the original query.
-- **Panel descriptions:** for panels that aren't exact, the description says how the translation differs ("≈ rate() over $__rate_interval instead of agent-computed per-second rate").
+Format reference: [Dash0 dashboard source format](https://www.dash0.com/docs/dash0/dashboards/reference-dashboard-source-format). Dash0 selects the data source itself, so panels carry none.
 
-> ⚠ **Verify in the hour-0 spike:** Dash0's panel plugin names, query plugin names, datasource reference, support for `$__interval`, `$__rate_interval`, and `$__range`, and how Markdown panels render. The reference is a dashboard built in the Dash0 UI and fetched over the API.
+- **Panels:** `timeseries` → `TimeSeriesChart`, `query_value` → `StatChart`, `note` → `Markdown`. Queries are `TimeSeriesQuery` with a `PrometheusTimeSeriesQuery` plugin; the legend is `{{label}}` for the `by` labels, else the Datadog alias.
+- **Formulas:** each `queries` entry is translated once into a named expression; each formula is then parsed with those names inlined. Legacy `q` strings (several comma-separated queries per request) are supported too.
+- **Failure handling:** if any query or formula of a widget is MANUAL, the whole widget becomes a placeholder. A half-migrated chart that silently omits a series would be worse than an obvious gap.
+- **Placeholders:** a `Markdown` panel in the original grid position with the reason, the quoted original queries, and a pointer to `plan.json`.
+- **Layout:** each Datadog group is a Perses `Grid` section, in order. The group's inner grid spans the group's own width `W`, so x and width are scaled by `24/W`, with rounding done on the right edge so neighbours stay adjacent. Heights are multiplied by 3 and have a minimum of 3. Groups that Datadog put side by side are stacked (≈, `dd.layout.groups-stacked`).
+- **Variables:** a variable with a tag prefix becomes a `ListVariable` (`PrometheusLabelValuesVariable` over the mapped label; "All" is `.*`). A free-form variable has no label to map to, so it is dropped and reported once per dashboard.
+- **Description:** every panel that is not ✓ gets a description listing its findings and the original Datadog queries, so the difference is visible inside Dash0.
+- **Identity:** `metadata.name` is a slug of the title; `metadata.dash0Extensions.id` is a `uuid5` of the Datadog dashboard id.
 
 ## Monitors → Dash0 check rules
 
-The Datadog monitor query `<time_agg>(<window>):<metric query> <comparator> <critical>` becomes:
+`avg(last_5m):100 * avg:redis.mem.used{*} / avg:redis.mem.maxmemory{*} > 90` with `critical: 90, warning: 70` becomes:
 
 ```yaml
-name:        "[Redis] High memory consumption"
-expression:  avg_over_time((100 * avg({otel_metric_name="redis.memory.used"})
-                / avg({otel_metric_name="redis.maxmemory"}))[5m:1m]) > $__threshold
+expression:  avg_over_time((100 * avg({otel_metric_name="redis.memory.used"}) / avg({otel_metric_name="redis.maxmemory"}))[5m:1m]) > $__threshold
 thresholds:  { degraded: 70, failed: 90 }        # DD warning → degraded, critical → failed
 interval:    1m
-for:         0s
-labels:      { integration: redisdb, openborder_tier: equivalent }
-annotations: { summary: <name>, description: <message, converted>,
-               openborder_source: "datadog:monitor:<id>", openborder_original_query: <query> }
-enabled:     true                                 # false when tier ≥ approximate
+labels:      { integration: redisdb }             # from the monitor's tags
+annotations: { summary, description (message, converted), openborder_tier, openborder_source, openborder_original_query }
+enabled:     true                                 # false when the tier is approximate (override: --enable-approximate)
 ```
 
-- **Time aggregation:** the window aggregation is pushed down to `*_over_time` when the inner query is a single selector and the result is identical (`max`/`max`, `min`/`min`, `sum`/`sum`). Otherwise it is wrapped in a subquery (≈).
-- **Message templates:** `{{value}}` becomes `{{ $value }}`; `{{host.name}}` becomes `{{ $labels.host_name }}`; `{{#is_alert}}` and `{{#is_warning}}` blocks are flattened, with a note. `@`-mentions are removed and reported, because notification routing has to be set up by hand in Dash0.
-- **Health colouring:** Dash0 colours services only when result series keep `service_name`. Datadog queries without `by {service}` produce free-standing checks. The report notes this but it doesn't change the tier.
+- **Window:** pushed down to `*_over_time` on the selector only when the space and time aggregators match and the inner query is a single aggregated selector (exact). Otherwise the whole expression goes into a subquery at 1-minute resolution (≈), which is the faithful reading of "average of the query's value over the window".
+- **Comparator:** `>` and `>=` are exact. `<` and `<=` are ~ because Dash0 documents that the higher threshold maps to `failed`. `==` and `!=` are ✗.
+- **Message:** `{{value}}` and `{{host.name}}` are converted to Prometheus template syntax, severity blocks are flattened, recovery/no-data blocks are dropped, `@`-mentions are removed and listed, and any remaining Datadog variable is listed. All of it is a ≈ finding.
+- **Not exported:** a MANUAL monitor is listed in the report and `plan.json` (with its original), but not written to `check-rules.json`.
 
-> ⚠ **Verify:** how `$__threshold` behaves with `<` comparators (the Dash0 docs say "the higher value maps to critical"), and whether client-supplied rule `id`s make a repeated bulk import idempotent.
+## Validation
 
-## Validation (`validate.py`)
+1. **Structure** (`validate.py`, pure, run inside `core`): `kind`, `metadata.name`, every layout `$ref` resolves, every panel is placed, items fit the 24-column grid, non-Markdown panels have non-empty queries; check rules are validated by a pydantic model of the documented `PrometheusAlertRule` fields (`extra="forbid"` catches typos; `$__threshold` requires thresholds).
+2. **PromQL syntax** (`promtool.py`, CLI only): every generated expression goes into a throw-away rules file, one group each so a failure is attributed to its panel. `$__rate_interval` and `$__interval` become `5m`, `$__range` becomes `1h`, `$__threshold` becomes `0`; `$host` inside a label value is already a valid string. It runs `promtool check rules` from the `prom/prometheus` image. If Docker is unavailable it says so and carries on. Verified to reject broken PromQL and name the offending expression.
+3. **Dash0 limits** (not yet checked): at most 1000 rules per request and a 2 MB body. The bulk rule import is atomic, so one invalid rule rejects all of them.
 
-1. **Structure:** check the generated JSON against our pydantic models of the Dash0 request bodies (`kind: Dashboard`, required rule fields).
-2. **PromQL:** write every expression to a temporary rule file, replacing `$__threshold` with `0`, `$__rate_interval`/`$__interval`/`$__range` with `5m`, and `$var` with `.*`, then run `promtool check rules` in the `prom/prometheus` Docker image. If Docker is missing, warn and skip.
-3. **Dash0 limits:** at most 1000 rules per bulk request and a 2 MB body. Also run a local pre-flight check on every rule, because one invalid item rejects the entire batch.
+A structure or promtool error makes `plan` exit 1, after writing the artifacts.
 
 ## Determinism
 
-- The same input and the same OpenBorder version always produce byte-identical artifacts.
-- JSON is written with `sort_keys=True` and a fixed indent. Lists keep the source order.
-- IDs are derived, never random: `uuid5(OPENBORDER_NS, "datadog:dashboard:<id>")`, used as `metadata.dash0Extensions.id` and as the check rule `id`. A repeated `apply` overwrites in place.
-- Nothing time-dependent appears in the artifacts. `plan.json` records the timestamp separately, and it is excluded from the hashes.
+- The same input and the same OpenBorder version give byte-identical artifacts. Tested, and covered by golden files.
+- JSON is written with `sort_keys=True`, 2-space indent and a trailing newline. Lists keep the source order; files are loaded in sorted order.
+- IDs are never random: `uuid5(namespace, "datadog:<kind>:<source id>")` for the dashboard `dash0Extensions.id` and the check-rule `id`. A repeated `apply` will overwrite in place.
+- No timestamps in any artifact. `plan.json` does record whether `promtool` ran, which depends on the machine.
 
 ## Plan artifacts (`./migration/`)
 
 ```
-plan.json            # version, source, items[{source_ref, kind, artifact, sha256, tier, enabled, findings, trace}], summary
+plan.json            # version, source, summary, validation, items[…]: everything `apply` and `explain` need
 perses/<slug>.json   # one Dash0 dashboard import body per dashboard
-check-rules.json     # {"items": [...]}, the exact bulk import body
-migration.log        # JSON lines: one finding per line (the "logs" the brief asks for)
+check-rules.json     # {"items": [...]}, the exact bulk import body (only when at least one rule is importable)
+migration.log        # JSON lines: one non-exact finding per line (the "logs" the brief asks for)
 ```
 
-`apply` imports the files listed in `plan.json`. If a file's hash changed, meaning it was edited by hand, `apply` warns and imports the edited version.
+`plan.json` items: for dashboards `{kind, source_ref, title, artifact, sha256, tier, findings, panels[{key, title, kind, tier, placeholder, queries[{promql, legend}], findings, trace, original}]}`; for monitors `{kind, source_ref, title, artifact, tier, enabled, promql, thresholds, findings, trace, original}`. Inputs that couldn't be processed at all go in `summary.skipped` and in the log as `input.skipped`.
 
-## Dash0 integration (verified from the docs)
+`plan` refreshes an existing plan folder: if `plan.json` is already there, stale `perses/*.json` files are removed first. It never deletes anything in a folder that doesn't contain a `plan.json`.
+
+`apply` (to build) imports the files listed in `plan.json`. If a file's hash changed, meaning it was edited by hand, it warns and imports the edited version.
+
+## Dash0 integration (from the documentation; not yet exercised)
 
 | Endpoint | Notes |
 |---|---|
 | `POST /api/import/dashboard` | Body `{kind: "Dashboard", metadata, spec}`. `metadata.dash0Extensions.id` set → overwrite; not set or unknown → create. Bearer auth, `?dataset=`. |
 | `POST /api/import/check-rules` | `{items: [...]}`, at most 1000, **atomic** (one invalid item rejects the whole batch), 2 MB body. Rule fields: `id, name, expression, thresholds{degraded, failed}, interval, for, keep_firing_for, labels, annotations, enabled`. |
 
-Configuration: `DASH0_AUTH_TOKEN`, `DASH0_API_URL` (default `https://api.eu-west-1.aws.dash0.com`), `DASH0_DATASET` (default `default`). Datadog: `DD_API_KEY`, `DD_APP_KEY`, `DD_SITE` (default `datadoghq.eu`).
+Configuration: `DASH0_AUTH_TOKEN`, `DASH0_API_URL` (default `https://api.eu-west-1.aws.dash0.com`; must match your org's region), `DASH0_DATASET` (default `default`). Datadog: `DD_API_KEY`, `DD_APP_KEY`, `DD_SITE` (default `datadoghq.eu`).
 
 These are stored by `openborder init` / `config set` in `cli/.env` (gitignored; override the location with `OPENBORDER_ENV_FILE`). `config.load_settings()` resolves each value as real environment variable, then file, then default. The clients receive these as plain arguments from the CLI shell; they never read the environment themselves. The `.env` parser is about 30 lines of standard library, so we don't depend on `python-dotenv`.
 
@@ -230,8 +208,8 @@ These are stored by `openborder init` / `config set` in `cli/.env` (gitignored; 
 
 - **Base URL:** `https://api.<site>`; the site is normalized, so `datadoghq.eu`, `app.datadoghq.eu` and a full URL all work.
 - **Auth:** `DD-API-KEY` + `DD-APPLICATION-KEY` headers. Verified against a real EU org: this works with an API key plus either an application key or a `ddpat_` Personal Access Token in the second slot. The `ddpat_` token alone also worked as `Authorization: Bearer`; we don't use that mode.
-- **Dashboards:** `GET /api/v1/dashboard?count=100&start=N` returns summaries only (`id`, `title`, `layout_type`, `modified_at`, and so on). It lists only custom or cloned dashboards, never Datadog's built-in ones. `paginate()` follows `start` until a short page and stops if a page adds nothing new.
-- **Monitors:** `GET /api/v1/monitor`; with no `page` parameter Datadog returns every match in one response. `--tag` maps to `monitor_tags`.
+- **Dashboards:** `GET /api/v1/dashboard?count=100&start=N` returns summaries only (`id`, `title`, `layout_type`, `modified_at`, and so on). It lists only custom or cloned dashboards, never Datadog's built-in ones. `paginate()` follows `start` until a short page and stops if a page adds nothing new. `GET /api/v1/dashboard/{id}` returns the full definition; `plan` uses it, and it has been verified against a real org.
+- **Monitors:** `GET /api/v1/monitor`; with no `page` parameter Datadog returns every match in one response. `--tag` / `--monitor-tag` maps to `monitor_tags`. The response has the same shape as an exported monitor, so one converter handles both.
 - **Errors:** HTTP 401/403 and 429 get specific messages (`explain_http_error`); network failures become a `DatadogError`. The CLI never prints credentials.
 
 ## Future: GUI

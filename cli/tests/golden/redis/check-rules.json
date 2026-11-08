@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "annotations": {
+        "description": "## What's happening?\n\nRedis memory usage has exceeded 90% of its allocated limit in the last 5 minutes with current value of {{ $value }}.\n \n\nRedis memory usage has exceeded 70% of its allocated limit in the last 5 minutes with current value of {{ $value }}.\n\n## Related Links\n\n- [Metrics Explorer (redis.mem.used)](/metric/explorer?exp_metric=redis.mem.used&exp_agg=avg&exp_type=line)\n- [Metrics Explorer (redis.mem.maxmemory)](/metric/explorer?exp_metric=redis.mem.maxmemory&exp_agg=avg&exp_type=line)",
+        "openborder_original_query": "avg(last_5m):100 * avg:redis.mem.used{*} / avg:redis.mem.maxmemory{*} > 90",
+        "openborder_source": "datadog:monitor:redis-high-memory-consumption",
+        "openborder_tier": "equivalent",
+        "summary": "[Redis] High memory consumption"
+      },
+      "enabled": true,
+      "expression": "avg_over_time((100 * avg({otel_metric_name=\"redis.memory.used\"}) / avg({otel_metric_name=\"redis.maxmemory\"}))[5m:1m]) > $__threshold",
+      "id": "83da09f7-8dc7-5e34-970c-89726f0bdcf0",
+      "interval": "1m",
+      "labels": {
+        "integration": "redisdb"
+      },
+      "name": "[Redis] High memory consumption",
+      "thresholds": {
+        "degraded": 70,
+        "failed": 90
+      }
+    }
+  ]
+}

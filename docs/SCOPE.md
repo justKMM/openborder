@@ -11,6 +11,25 @@ Show that a real Datadog dashboard and monitor (`integrations-core/redisdb`: "Re
 3. **imported** into Dash0 through the official import APIs,
 4. **shown working** there, with live Redis data arriving through OpenTelemetry.
 
+## Status (2026-11-08)
+
+| Must-have | State |
+|---|---|
+| Datadog ingestion: API and `--from-dir` | ☑ done; the API path has run against a real EU org (read-only) |
+| `init` / `config` (persistent credentials) | ☑ done |
+| `discover` | ☑ done |
+| Query parser, lowering rules, PromQL printer | ☑ done, one test row per rule |
+| Redis mapping | ☑ done, evidence cited in the YAML |
+| Dashboard → Perses, placeholders, layout, variables | ☑ done |
+| Monitor → check rule | ☑ done |
+| Validation: structure, rule schema, `promtool` | ☑ done; the Dash0 request limits are not checked yet |
+| `plan` with tree, coverage and findings | ☑ done: the real Redis dashboard gives 32/36 panels migrated, 1/1 monitor armed |
+| `apply` (Dash0 import) | ☐ **next**: nothing has been imported into Dash0 yet |
+| `explain` | ☐ the data is already in `plan.json`; the command is not built |
+| `demo/` live Redis data | ☐ not built |
+
+The biggest open risk is that the generated Perses output hasn't met a real Dash0 yet; see "Not verified against a live Dash0" in [COMPATIBILITY.md](COMPATIBILITY.md).
+
 ## Must-have (P0)
 
 - Datadog ingestion through the API (`/api/v1/dashboard`, `/api/v1/monitor`) and from exported JSON files (`--from-dir`).
@@ -19,7 +38,7 @@ Show that a real Datadog dashboard and monitor (`integrations-core/redisdb`: "Re
 - A Redis metric and tag mapping file (Datadog → OTel `redisreceiver`).
 - Generators:
   - IR → PromQL text,
-  - IR → Perses dashboard (timeseries, query_value, note, group, toplist, template variables, layout),
+  - IR → Perses dashboard (timeseries, query_value, note, group, template variables, layout; `toplist` is a placeholder because Dash0's documented panel kinds have no ranked bar or table),
   - IR → Dash0 check rule (`$__threshold`, degraded/failed thresholds, annotations, labels).
 - Placeholder Markdown panels for untranslatable widgets.
 - Validation:

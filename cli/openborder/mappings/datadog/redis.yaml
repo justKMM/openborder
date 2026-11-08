@@ -1,0 +1,87 @@
+# Datadog Redis metrics -> OpenTelemetry `redisreceiver` metrics.
+#
+# Sources of truth (do not guess; re-check both when adding entries):
+#   Datadog side : redisdb/datadog_checks/redisdb/constants.py in DataDog/integrations-core.
+#                  GAUGE_KEYS submit the raw INFO value; RATE_KEYS submit a per-second rate.
+#                  NOTE: metadata.csv labels nearly everything `gauge`, including the rates, so it
+#                  must not be used to decide whether a transform is needed.
+#   OTel side    : opentelemetry-collector-contrib/receiver/redisreceiver/documentation.md
+#
+# `transform: rate`  -> Datadog reports a per-second rate of a cumulative INFO counter (RATE_KEYS);
+#                       the OTel metric is that cumulative counter, so we apply PromQL rate().
+# `transform: none`  -> Datadog reports the value as-is; the OTel metric carries the same quantity.
+integration: redis
+otel_receiver: redisreceiver
+
+# Datadog tag -> label on the OTel series, as addressed in Dash0 PromQL (dots become underscores).
+# `host` assumes the collector adds host.name (e.g. resourcedetection processor).
+# `server_address` / `server_port` are resource attributes that are disabled by default in redisreceiver.
+tags:
+  host: host_name
+  redis_host: server_address
+  redis_port: server_port
+  redis_db: db
+
+metrics:
+  # --- gauges (GAUGE_KEYS) with a direct OTel counterpart -------------------------------------
+  redis.mem.used:
+    otel: redis.memory.used
+  redis.mem.rss:
+    otel: redis.memory.rss
+  redis.mem.fragmentation_ratio:
+    otel: redis.memory.fragmentation_ratio
+  redis.mem.maxmemory:
+    otel: redis.maxmemory            # OPTIONAL metric in redisreceiver: enable it in the collector config
+  redis.net.clients:
+    otel: redis.clients.connected
+  redis.clients.blocked:
+    otel: redis.clients.blocked
+  redis.net.slaves:
+    otel: redis.slaves.connected
+  redis.rdb.changes_since_last:
+    otel: redis.rdb.changes_since_last_save
+  redis.keys:
+    otel: redis.db.keys              # per-db attribute `db`; Datadog's redis.keys is per `redis_db`
+  redis.expires:
+    otel: redis.db.expires
+
+  # --- raw running totals (GAUGE_KEYS): Datadog plots the cumulative total, so do we -----------
+  redis.keys.evicted:
+    otel: redis.keys.evicted
+  redis.keys.expired:
+    otel: redis.keys.expired
+  redis.net.rejected:
+    otel: redis.connections.rejected
+
+  # --- per-second rates (RATE_KEYS): OTel exports the cumulative counter -----------------------
+  redis.stats.keyspace_hits:
+    otel: redis.keyspace.hits
+    transform: rate
+  redis.stats.keyspace_misses:
+    otel: redis.keyspace.misses
+    transform: rate
+  redis.net.commands:
+    otel: redis.commands.processed   # DD: total_commands_processed as a rate
+    transform: rate
+  redis.cpu.sys:
+    otel: redis.cpu.time             # DD: used_cpu_sys as a rate -> CPU-seconds per second
+    matchers: {state: sys}
+    transform: rate
+  redis.cpu.user:
+    otel: redis.cpu.time
+    matchers: {state: user}
+    transform: rate
+
+  # --- no OTel counterpart in redisreceiver --------------------------------------------------
+  redis.info.latency_ms:
+    otel: null
+  redis.slowlog.micros.95percentile:
+    otel: null
+  redis.slowlog.micros.count:
+    otel: null
+  redis.replication.delay:
+    otel: null
+  redis.replication.master_link_down_since_seconds:
+    otel: null
+  redis.key.length:
+    otel: null

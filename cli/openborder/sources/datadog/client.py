@@ -104,6 +104,10 @@ class DatadogClient:
 
         return paginate(fetch, DASHBOARD_PAGE_SIZE)
 
+    def get_dashboard(self, dashboard_id: str) -> dict:
+        """The full definition (widgets and all) of one dashboard."""
+        return self._get(f"/api/v1/dashboard/{dashboard_id}")
+
     def list_monitors(self, monitor_tags: str | None = None) -> list[dict]:
         """All monitors. With no `page` parameter Datadog returns every match in one response."""
         params = {"monitor_tags": monitor_tags} if monitor_tags else None
