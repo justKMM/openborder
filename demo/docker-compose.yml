@@ -1,0 +1,44 @@
+# Live Redis data for the migrated dashboard: Redis + a load generator + an OpenTelemetry Collector.
+#
+#   cp .env.example .env        # fill in your Dash0 values
+#   docker compose up -d        # sends metrics to Dash0
+#   docker compose down         # stop
+#
+# To look at the metrics locally WITHOUT sending anything to Dash0:
+#   OTEL_CONFIG=otel-collector.local.yaml docker compose up -d
+#   docker compose logs -f otel-collector
+services:
+  redis:
+    image: redis:7-alpine
+    # A small maxmemory so the load generator really triggers evictions (redis.keys.evicted).
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  loadgen:
+    image: redis:7-alpine
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./loadgen.sh:/loadgen.sh:ro
+    entrypoint: ["sh", "/loadgen.sh"]
+    environment:
+      REDIS_HOST: redis
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.165.0
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./${OTEL_CONFIG:-otel-collector.yaml}:/etc/otelcol/config.yaml:ro
+    environment:
+      DASH0_OTLP_ENDPOINT: ${DASH0_OTLP_ENDPOINT:-}
+      DASH0_AUTH_TOKEN: ${DASH0_AUTH_TOKEN:-}
+      DASH0_DATASET: ${DASH0_DATASET:-default}
+      DEMO_HOST_NAME: ${DEMO_HOST_NAME:-redis-demo}
