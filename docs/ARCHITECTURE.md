@@ -2,7 +2,7 @@
 
 Design goal: **the simplest pipeline that is deterministic, explainable, and actually imports into Dash0.** Delivery speed comes before extensibility. We keep a small IR because the brief asks for one and because it keeps the parser separate from the generators. There is no plugin system and no abstract base classes until a second vendor exists.
 
-**Implementation status:** `init`, `config`, `discover` and `plan` are built and tested (133 tests). `apply` and `explain` are not. Nothing has been imported into Dash0 yet, so everything under "Dash0 integration" is from its documentation.
+**Implementation status:** `init`, `config`, `discover`, `plan` and `apply` are built and tested (172 tests). `explain` is not built. `apply` has imported one empty dashboard into a real Dash0 org; no panels, variables or check rules have been imported there yet, so the Perses panel dialect and the rule import are still from Dash0's documentation.
 
 ## Pipeline
 
@@ -19,12 +19,12 @@ Design goal: **the simplest pipeline that is deterministic, explainable, and act
                 promtool.py   PromQL syntax via Docker         (CLI only)
                    ▼
                 ./migration/  perses/*.json · check-rules.json · plan.json · migration.log
-                   ▼  (openborder apply — not built yet)
+                   ▼  (openborder apply)  apply.py: load, verify hashes, re-validate
                 dash0_client.py ──► POST /api/import/dashboard (one per dashboard)
                                     POST /api/import/check-rules (one atomic batch)
 ```
 
-`plan` runs every stage except the last. `apply` will read only `./migration/`. It must never re-translate, so what you reviewed is exactly what gets imported.
+`plan` runs every stage except the last. `apply` reads only `./migration/` and never re-translates, so what you reviewed is exactly what gets imported.
 
 **The core is a pure library.** `openborder.core.plan(dashboards, monitors, options, skipped)` runs in memory: raw Datadog JSON in, artifacts as `{relative_path: bytes}` plus findings out. It does no disk, environment, network or Docker access, which is why `promtool.py` (Docker) and `config.py` (environment) are separate modules that `core` never imports. The CLI is a thin shell: it fetches inputs, calls the core, runs `promtool`, writes the files and prints the report. This keeps the core easy to test, and a GUI could reuse it later (see [Future: GUI](#future-gui)).
 
@@ -35,13 +35,15 @@ cli/                         # all CLI logic lives here; run from this directory
   requirements.txt
   openborder/                # the Python package → `python -m openborder <command>`
     __main__.py              # entry point (forces UTF-8 output so tier symbols never crash a Windows console)
-    cli.py                   # CLI shell: init, config, discover, plan (apply, explain: stubs)
+    cli.py                   # CLI shell: init, config, discover, plan, apply (explain: stub)
     core.py                  # pure: plan() and render_plan_json(); no I/O
     ir.py                    # IR (frozen dataclasses): Tier, Finding, TraceStep, Expr nodes, Panel, Dashboard, AlertRule
     ids.py                   # stable_id() (uuid5) and slug(): the only source of identifiers
     config.py                # credentials/settings in cli/.env (shell-side; never imported by core)
     report.py                # Rich output: plan tree, coverage, monitors, findings-by-rule, validation
     validate.py              # pure: dashboard structure checks, pydantic model of the check-rule body
+    apply.py                 # shell-side: load and verify a plan folder for `apply` (hashes, re-validation, Dash0 size limits)
+    dash0_client.py          # Dash0 API (httpx): the two import endpoints; https-only, dataset check, error messages
     promtool.py              # `promtool check rules` via Docker (CLI only)
     mappings/
       __init__.py            # load_mappings(): merges every datadog/*.yaml
@@ -58,7 +60,7 @@ cli/                         # all CLI logic lives here; run from this directory
       perses.py              # IR Dashboard → Dash0 dashboard import body
       dash0_rules.py         # IR AlertRule → Dash0 check-rule import body
   tests/
-    conftest.py              # autouse isolation (temp cwd, no credentials) + golden-file helper
+    conftest.py              # autouse isolation (temp cwd, no credentials), golden-file helper, FakeDash0 (a real local HTTP server)
     fixtures/datadog/redisdb # the real Redis dashboard and monitor from integrations-core
     golden/redis/            # expected artifacts for those fixtures
 demo/                        # docker-compose: redis, load generator, otel-collector (not built yet)
@@ -191,7 +193,15 @@ migration.log        # JSON lines: one non-exact finding per line (the "logs" th
 
 `plan` refreshes an existing plan folder: if `plan.json` is already there, stale `perses/*.json` files are removed first. It never deletes anything in a folder that doesn't contain a `plan.json`.
 
-`apply` (to build) imports the files listed in `plan.json`. If a file's hash changed, meaning it was edited by hand, it warns and imports the edited version.
+## `apply`
+
+1. **Load** (`apply.py`): read `plan.json`; refuse a plan with another `version` (currently 2), or whose recorded validation has structure or `promtool` errors; read every dashboard artifact and `check-rules.json`; compare each file's SHA-256 with the one `plan` recorded, ignoring CRLF vs LF (git's `autocrlf` rewrites line endings, which is not an edit). A real mismatch means it was edited by hand: warn, import the edited file. **Completeness check:** every monitor that `plan.json` marks importable must be present in `check-rules.json`, with a matching count, or `apply` refuses. A first version of `apply` read an optional entry and silently skipped six alerts while reporting success; that is now a tested failure.
+2. **Re-validate** the files as they are now (dashboard structure, check-rule schema) and check Dash0's size limits (256 KB per dashboard, 1000 rules and 2 MB for the rule batch). A broken edit is refused before anything is sent.
+3. **Show** the target and every item; **confirm** by typing `yes` (`--auto-approve` skips, `--dry-run` stops here). Anything other than `yes`, including no input at all, cancels with exit code 1.
+4. **Import:** one `POST /api/import/dashboard` per dashboard, then one `POST /api/import/check-rules` with all rules. Failures are collected, not fatal: a rejected dashboard doesn't stop the rules, and a rejected rule batch says that nothing from it was written.
+5. **Record** the outcome in `apply.json` (dashboard ids, statuses, the `created` count for rules; never credentials). Exit 1 if anything failed.
+
+`DASH0_API_URL` must be `https://` (or `localhost` for tests), so the token cannot go out in plain text. `DASH0_DATASET` is checked against Dash0's slug pattern before any request.
 
 ## Dash0 integration (from the documentation; not yet exercised)
 

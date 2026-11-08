@@ -60,6 +60,33 @@ def convert_message(message: str) -> tuple[str, list[str], list[str]]:
     return re.sub(r"\n{3,}", "\n\n", text).strip(), notes, mentions
 
 
+_NAME_TEMPLATE_PHRASE = re.compile(r"\s+(?:for|on|of|in)(?:\s+[\w.\-]+)?\s*\{\{[^}]+\}\}", re.I)
+_UNSUPPORTED_KINDS = (
+    (r"\bforecast\(", "forecast monitors"),
+    (r"\banomalies\(", "anomaly-detection monitors"),
+    (r"\boutliers\(", "outlier-detection monitors"),
+    (r"\b(?:pct_)?change\(", "change/pct_change monitors"),
+)
+
+
+def split_name(name: str) -> tuple[str, str]:
+    """Return (static check name, templated summary). Dash0 does not expand templates in a check's name,
+    so `Disk full for host {{host.name}}` becomes the name `Disk full` and keeps the template in the summary."""
+    summary = name.replace("{{value}}", "{{ $value }}")
+    summary = re.sub(r"\{\{host\.name\}\}", "{{ $labels.host_name }}", summary)
+    static = _NAME_TEMPLATE_PHRASE.sub("", name)
+    static = re.sub(r"\s*\{\{[^}]+\}\}\s*", " ", static)
+    static = re.sub(r"\s{2,}", " ", static).strip()
+    return (static or name), summary
+
+
+def _unsupported_reason(query: str, error: Exception) -> str:
+    for pattern, label in _UNSUPPORTED_KINDS:
+        if re.search(pattern, query):
+            return f"{label} have no Prometheus equivalent; recreate it manually in Dash0"
+    return f"could not translate the monitor query: {error}"
+
+
 def _labels(tags: list[str]) -> dict[str, str]:
     labels: dict[str, str] = {}
     for tag in tags:
@@ -91,8 +118,9 @@ def _option_findings(options: dict, ref: str) -> list[Finding]:
 
 def convert_monitor(data: dict, mapping: Mapping, enable_approximate: bool = False) -> AlertRule:
     d = data.get("definition") if isinstance(data.get("definition"), dict) else data
-    name = d.get("name") or data.get("title") or "Unnamed monitor"
-    source_id = str(data.get("id") or d.get("id") or slug(name, "monitor"))
+    raw_name = d.get("name") or data.get("title") or "Unnamed monitor"
+    name, summary = split_name(raw_name)
+    source_id = str(data.get("id") or d.get("id") or slug(raw_name, "monitor"))
     ref = f"monitor:{name}"
     rec = Recorder(ref)
     query = d.get("query") or ""
@@ -145,11 +173,13 @@ def convert_monitor(data: dict, mapping: Mapping, enable_approximate: bool = Fal
             else:
                 rec.step("dd.monitor.thresholds", EXACT, "critical/warning", "failed/degraded")
         except qp.ParseError as e:
-            rec.step("dd.monitor.unsupported-query", MANUAL, query, "", f"could not translate the monitor query: {e}")
+            rec.step("dd.monitor.unsupported-query", MANUAL, query, "", _unsupported_reason(query, e))
         except Unsupported as e:
             rec.step(e.rule_id, MANUAL, query, "", e.message)
 
     findings = list(rec.findings) + _option_findings(options, ref)
+    if name != raw_name:
+        findings.append(Finding(EQUIVALENT, "dd.monitor.name", f"Dash0 does not expand templates in a check's name: '{raw_name}' is named '{name}'; the full title with its templates is kept in the summary", ref))
     description, notes, mentions = convert_message(d.get("message") or "")
     if notes:
         findings.append(Finding(EQUIVALENT, "dd.monitor.message", "message template changed: " + "; ".join(notes) + " (verify the rendering in Dash0)", ref))
@@ -161,7 +191,7 @@ def convert_monitor(data: dict, mapping: Mapping, enable_approximate: bool = Fal
     if d.get("priority") is not None:
         labels.setdefault("priority", str(d["priority"]))
     annotations = {
-        "summary": name,
+        "summary": summary,
         "description": description,
         "openborder_source": f"datadog:monitor:{source_id}",
         "openborder_tier": tier.label,

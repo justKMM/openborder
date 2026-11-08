@@ -116,3 +116,33 @@ def test_message_conversion_flags_variables_it_cannot_convert():
     _, notes, _ = convert_message("on {{host.name}} threshold {{threshold}} {{tag.env}}")
     leftovers = next(n for n in notes if n.startswith("left unconverted"))
     assert "{{threshold}}" in leftovers and "{{tag.env}}" in leftovers and "host.name" not in leftovers
+
+
+# ---- names with templates, and forecast monitors ---------------------------------------
+
+
+@pytest.mark.parametrize(
+    "name, static, summary",
+    [
+        ("Disk latency is high for host {{host.name}} on device {{device.name}}", "Disk latency is high",
+         "Disk latency is high for host {{ $labels.host_name }} on device {{device.name}}"),
+        ("Memory space is low for host {{host.name}}", "Memory space is low", "Memory space is low for host {{ $labels.host_name }}"),
+        ("[Redis] High memory consumption", "[Redis] High memory consumption", "[Redis] High memory consumption"),
+    ],
+)
+def test_check_names_never_contain_templates_but_the_summary_keeps_them(name, static, summary):
+    rule = convert("avg(last_5m):avg:redis.mem.used{*} > 90", name=name)
+    assert rule.name == static and rule.annotations["summary"] == summary
+    assert ("dd.monitor.name" in [f.rule_id for f in rule.findings]) == (static != name)
+
+
+def test_a_name_that_is_only_a_template_is_kept_rather_than_emptied():
+    assert convert("avg(last_5m):avg:redis.mem.used{*} > 90", name="{{host.name}}").name == "{{host.name}}"
+
+
+def test_forecast_monitors_are_named_as_such_not_blamed_on_syntax():
+    query = 'max(next_3d):forecast((1 - avg:system.disk.free{*} / avg:system.disk.total{*}) * 100, "seasonal", 1) >= 99'
+    rule = convert(query)
+    assert rule.tier == Tier.MANUAL and rule.expr is None
+    reason = next(f.message for f in rule.findings if f.rule_id == "dd.monitor.unsupported-query")
+    assert "forecast monitors have no Prometheus equivalent" in reason

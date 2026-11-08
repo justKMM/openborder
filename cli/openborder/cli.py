@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import typer
@@ -5,6 +6,8 @@ from rich.console import Console
 from rich.table import Table
 
 from openborder import __version__, config, core, promtool, report
+from openborder.apply import PlanError, load_plan
+from openborder.dash0_client import Dash0Client, Dash0Error
 from openborder.sources.datadog.client import DatadogClient, DatadogError
 from openborder.sources.datadog.files import load_directory
 from openborder.targets.promql import render
@@ -218,9 +221,77 @@ def plan(
 
 
 @app.command()
-def apply() -> None:
-    """Import a reviewed plan into Dash0."""
-    _not_implemented("apply")
+def apply(
+    plan_dir: Path = typer.Argument(Path("migration"), help="The folder written by `plan`."),
+    auto_approve: bool = typer.Option(False, "--auto-approve", "--yes", "-y", help="Import without asking for confirmation."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be imported and where; send nothing."),
+) -> None:
+    """Import a reviewed plan into Dash0. This is the only command that writes to Dash0."""
+    try:
+        loaded = load_plan(plan_dir)
+    except PlanError as e:
+        raise _fail(str(e))
+    settings = config.load_settings()
+    if "DASH0_AUTH_TOKEN" not in settings:
+        raise _fail("Missing DASH0_AUTH_TOKEN. Run `python -m openborder init`.")
+    try:
+        client = Dash0Client(settings["DASH0_AUTH_TOKEN"], settings["DASH0_API_URL"], settings["DASH0_DATASET"])
+    except Dash0Error as e:
+        raise _fail(str(e))
+
+    report.print_apply_summary(console, loaded, client.api_url, client.dataset)
+    if dry_run:
+        client.close()
+        console.print("\n[bold]Dry run:[/bold] nothing was sent.")
+        raise typer.Exit(code=0)
+    if not auto_approve:
+        console.print("\nDash0 will create these items, or overwrite them if they were imported before.")
+        try:
+            answer = typer.prompt("Type 'yes' to import", default="no", show_default=False)
+        except typer.Abort:
+            answer = "no"
+        if answer.strip().lower() != "yes":
+            client.close()
+            console.print("[yellow]Cancelled. Nothing was imported.[/yellow]")
+            raise typer.Exit(code=1)
+
+    results: dict = {"target": {"api_url": client.api_url, "dataset": client.dataset}, "dashboards": [], "check_rules": None}
+    failures = 0
+    console.print()
+    with client:
+        for d in loaded.dashboards:
+            try:
+                response = client.import_dashboard(d.body)
+                fallback = d.body["metadata"]["dash0Extensions"]["id"]
+                dash0_id = ((response.get("metadata") or {}).get("dash0Extensions") or {}).get("id") or fallback
+                console.print(f"[green]✓[/green] dashboard [bold]{d.title}[/bold]  [dim]{dash0_id}[/dim]")
+                results["dashboards"].append({"title": d.title, "artifact": d.artifact, "status": "imported", "id": dash0_id})
+            except Dash0Error as e:
+                failures += 1
+                console.print(f"[red]✗ dashboard {d.title}[/red]\n  {e}")
+                results["dashboards"].append({"title": d.title, "artifact": d.artifact, "status": "failed", "error": str(e)})
+        if loaded.rules:
+            try:
+                response = client.import_check_rules(loaded.rules)
+                created = response.get("created")
+                note = ""
+                if isinstance(created, int) and created < len(loaded.rules):
+                    note = f" ({created} newly created, {len(loaded.rules) - created} overwrote existing rules)"
+                console.print(f"[green]✓[/green] {len(loaded.rules)} check rule(s) imported{note}")
+                results["check_rules"] = {"status": "imported", "sent": len(loaded.rules), "created": created}
+            except Dash0Error as e:
+                failures += 1
+                console.print(f"[red]✗ check rules[/red]\n  {e}")
+                results["check_rules"] = {"status": "failed", "sent": len(loaded.rules), "error": str(e)}
+
+    (plan_dir / "apply.json").write_text(json.dumps(results, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
+    if failures:
+        console.print(
+            f"\n[red]Apply finished with {failures} failure(s).[/red] Items that succeeded are in Dash0. "
+            "Fix the cause and run `apply` again: every item has a stable ID, so Dash0 overwrites instead of duplicating."
+        )
+        raise typer.Exit(code=1)
+    console.print(f"\n[green]Apply complete[/green] in dataset '{client.dataset}'. Results are in {plan_dir / 'apply.json'}.")
 
 
 @app.command()

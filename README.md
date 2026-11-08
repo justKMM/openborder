@@ -6,7 +6,7 @@ OpenBorder migrates Datadog dashboards and monitors to [Dash0](https://www.dash0
 
 The translation path contains **no LLMs**. Every query passes through a parser and named translation rules, and each rule has a fixed fidelity tier. That makes every translation deterministic, testable, and explainable.
 
-> 🚧 **Status:** hackathon build in progress (thinc! 2026, Dash0 challenge). The commands below describe the target interface. Today `init`, `config`, `discover`, `plan`, `version` and `--help` work; `apply` and `explain` exist as stubs that exit with an error. Nothing has been imported into Dash0 yet. See [docs/SCOPE.md](docs/SCOPE.md) for what is in and out.
+> 🚧 **Status:** hackathon build in progress (thinc! 2026, Dash0 challenge). The commands below describe the target interface. Today `init`, `config`, `discover`, `plan`, `apply`, `version` and `--help` work; `explain` exists as a stub that exits with an error. `apply` has imported an empty dashboard into a real Dash0 org, but **no generated panels or alert rules have been imported there yet**, so how Dash0 renders them is still unverified. See [docs/SCOPE.md](docs/SCOPE.md) for what is in and out.
 
 ## Why
 
@@ -46,7 +46,7 @@ python -m openborder discover                                # list dashboards &
 python -m openborder plan --dashboard abc-def-ghi --monitor-tag integration:redisdb   # translate and write ./migration (imports nothing)
 python -m openborder plan --from-dir tests/fixtures/datadog                          # or work offline from exported JSON
 python -m openborder explain --query 'avg:redis.stats.keyspace_hits{*}'
-python -m openborder apply ./migration                      # asks for confirmation; --auto-approve to skip
+python -m openborder apply ./migration                      # shows what it will send, you type 'yes'; --dry-run sends nothing, --auto-approve skips the prompt
 ```
 
 **Configuration.** `init` asks for these six values once and stores them in `cli/.env`, so you don't need to `export` them in every new terminal. Run `init` again to update them (Enter keeps the current value), or change a single one with `python -m openborder config set DD_SITE datadoghq.com`. `config show` lists the current values with secrets masked. Real environment variables take precedence over the file.
@@ -96,7 +96,31 @@ Monitors  →  Dash0 check rules
 Artifacts written to migration  ·  review them, then run `python -m openborder apply migration`
 ```
 
-The `✗` panels are not lost: each becomes a placeholder panel in the same grid position that explains why and quotes the original query. Nothing is imported into Dash0 yet (`apply` is next), so the generated dashboard and rule have not been seen working in Dash0.
+The `✗` panels are not lost: each becomes a placeholder panel in the same grid position that explains why and quotes the original query.
+
+### `apply`
+
+`apply [FOLDER]` (default `./migration`) imports what `plan` wrote, and nothing else: it never re-translates. It re-reads and re-validates the files, shows the target (`DASH0_API_URL`, dataset), the dashboards and the check rules, and asks you to type `yes`. `--dry-run` shows the same and sends nothing; `--auto-approve` skips the question.
+
+- A file you edited by hand after `plan` is imported (with a warning), unless the edit broke it, in which case nothing is sent.
+- A plan that failed validation is refused.
+- Dashboards are imported one request each, so one failure does not block the others. Check rules go in one atomic request: if Dash0 rejects any rule, none of them is written, and the message says so.
+- Every dashboard and rule has a stable ID, so running `apply` again is meant to overwrite rather than duplicate. That follows Dash0's documentation and hasn't been confirmed against a real org yet.
+- The token is sent only over `https://` (plain `http://` is accepted for `localhost` only).
+- Results, without any credentials, are written to `apply.json` in the plan folder.
+
+```
+$ python -m openborder apply ./migration
+Target  https://api.eu-west-1.aws.dash0.com  ·  dataset 'default'
+
+Dashboards (1)
+└── Redis - Overview  32/36 panels migrated, 4 placeholder(s) for widgets with no equivalent
+Check rules (1), one atomic request
+└── ≈ [Redis] High memory consumption  degraded 70 · failed 90  enabled
+
+Dash0 will create these items, or overwrite them if they were imported before.
+Type 'yes' to import:
+```
 
 ## Live-data demo
 

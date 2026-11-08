@@ -33,6 +33,33 @@ def _panel_detail(panel) -> str:
     return ""
 
 
+def print_apply_summary(console: Console, loaded, api_url: str, dataset: str) -> None:
+    """What `apply` is about to send, and where. Shown before the confirmation prompt."""
+    console.print(f"[bold]Target[/bold]  {api_url}  ·  dataset '{dataset}'\n")
+    if loaded.dashboards:
+        tree = Tree(f"[bold]Dashboards ({len(loaded.dashboards)})[/bold]", guide_style="dim")
+        for d in loaded.dashboards:
+            edited = "  [yellow]edited by hand since plan; the edited file will be imported[/yellow]" if d.edited else ""
+            migrated = d.panels - d.placeholders
+            detail = f"{migrated}/{d.panels} panels migrated"
+            if d.placeholders:
+                detail += f", {d.placeholders} placeholder(s) for widgets with no equivalent"
+            tree.add(f"{d.title}  [dim]{detail} · {d.artifact}[/dim]{edited}")
+        console.print(tree)
+    if loaded.rules:
+        tree = Tree(f"[bold]Check rules ({len(loaded.rules)})[/bold], one atomic request", guide_style="dim")
+        for rule in loaded.rules:
+            tier = Tier[rule["annotations"].get("openborder_tier", "exact").upper()]
+            levels = " · ".join(f"{k} {v:g}" for k, v in sorted(rule.get("thresholds", {}).items(), key=lambda kv: kv[1]))
+            state = "[green]enabled[/green]" if rule.get("enabled", True) else "[yellow]DISABLED[/yellow]"
+            tree.add(f"{_tag(tier)} {rule['name']}  [dim]{levels}[/dim]  {state}")
+        console.print(tree)
+        if loaded.rules_edited:
+            console.print("  [yellow]check-rules.json was edited by hand since plan; the edited file will be imported[/yellow]")
+    for title in loaded.not_imported:
+        console.print(f"[red]✗ not imported:[/red] monitor {title}  [dim](no Dash0 equivalent; recreate it manually)[/dim]")
+
+
 def print_plan(console: Console, plan, out_dir, validation: dict) -> None:
     for dash in plan.dashboards:
         counts = Counter(p.tier for p in dash.panels)

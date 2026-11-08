@@ -102,7 +102,8 @@ A placeholder is a `Markdown` panel in the original grid position. It states the
 | comparator `==` `!=` | — | ✗ | `dd.monitor.comparator` | ☑ |
 | `thresholds.critical` / `.warning` | `thresholds.failed` / `.degraded` | ✓ | `dd.monitor.thresholds` | ☑ |
 | query threshold ≠ `thresholds.critical` | `thresholds.critical` used | ~ | `dd.monitor.thresholds` | ☑ |
-| `name` | `name` and `annotations.summary` | ✓ | — | ☑ |
+| `name` without templates | `name` and `annotations.summary` | ✓ | — | ☑ |
+| `name` with `{{…}}` templates (`… for host {{host.name}}`) | static `name` (the template phrase removed, e.g. `Disk latency is high`); the full title with its templates is kept in `annotations.summary`, because Dash0 does not expand templates in a check's name | ≈ | `dd.monitor.name` | ☑ |
 | `message` with `{{value}}`, `{{host.name}}`, `{{#is_alert}}`, `{{#is_warning}}` | `annotations.description` in Prometheus template syntax; severity blocks flattened (both texts appear); recovery/no-data blocks removed; other variables left and listed | ≈ | `dd.monitor.message` | ☑ |
 | `@`-mentions | removed and listed; routing must be set up in Dash0 | ≈ | `dd.monitor.notify` | ☑ |
 | `tags` `k:v` | `labels` `{k: v}`; bare tags become `"true"`; `priority` → `labels.priority` | ✓ | — | ☑ |
@@ -110,7 +111,7 @@ A placeholder is a `Markdown` panel in the original grid position. It states the
 | `notify_no_data: true` | not migrated: the rule stays silent when the series disappears | ~ | `dd.monitor.no-data` | ☑ |
 | evaluation cadence | `interval: 1m` | ≈ | — | ☑ |
 | `service check`, `log alert`, `trace-analytics`, `composite`, `event`, `synthetics`, `slo`, `anomaly`/`forecast`/`outlier` | not imported | ✗ | `dd.monitor.unsupported` | ☑ |
-| `change()`, `pct_change()`, other query shapes | not imported | ✗ | `dd.monitor.unsupported-query` | ☑ |
+| `forecast()`, `anomalies()`, `outliers()`, `change()`, `pct_change()` and other query shapes | not imported; the reason names what the monitor is (e.g. "forecast monitors have no Prometheus equivalent") | ✗ | `dd.monitor.unsupported-query` | ☑ |
 | companion `absent_over_time` rule for no-data | — | ~ | — | ☐ |
 
 Every alert also carries `annotations.openborder_tier`, `openborder_source` (`datadog:monitor:<id>`) and `openborder_original_query`.
@@ -146,6 +147,10 @@ The source of truth is [`cli/openborder/mappings/datadog/redis.yaml`](../cli/ope
 - **Tag value case:** Datadog lowercases tag values, OTel attribute values keep their case (≈, `dd.filter.case`).
 - **Message templates:** Dash0's alert template syntax is assumed to match Prometheus (`{{ $value }}`, `{{ $labels.x }}`); not yet verified.
 
+## Verified against a live Dash0 (2026-11-08)
+
+- `POST /api/import/dashboard` accepted a dashboard with no panels (an empty Datadog dashboard) in an EU org (`https://api.europe-west4.gcp.dash0.com`, dataset `default`): authentication, endpoint, request envelope (`kind`, `metadata.dash0Extensions.id`, `spec`) and response parsing work.
+
 ## Not verified against a live Dash0 yet
 
-These are generated from Dash0's documentation but have not been imported: the `ListVariable` / `PrometheusLabelValuesVariable` spec, `StatChart` and `TimeSeriesChart` option names, whether `$__rate_interval`, `$__interval` and `$__range` are substituted in Dash0, how multi-select variables expand inside `=~"$host"`, `thresholds.degraded`/`failed` ordering for below-threshold rules, and `metadata.dash0Extensions.id` overwrite behaviour. `apply` is the step that will verify them.
+That import had no panels, no variables and no layouts, so none of the panel dialect has been exercised. These are generated from Dash0's documentation but have not been imported: the `ListVariable` / `PrometheusLabelValuesVariable` spec, `StatChart` and `TimeSeriesChart` option names, whether `$__rate_interval`, `$__interval` and `$__range` are substituted in Dash0, how multi-select variables expand inside `=~"$host"`, `thresholds.degraded`/`failed` ordering for below-threshold rules, and `metadata.dash0Extensions.id` overwrite behaviour. `apply` is the step that will verify them.

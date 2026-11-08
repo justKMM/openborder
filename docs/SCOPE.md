@@ -24,11 +24,11 @@ Show that a real Datadog dashboard and monitor (`integrations-core/redisdb`: "Re
 | Monitor → check rule | ☑ done |
 | Validation: structure, rule schema, `promtool` | ☑ done; the Dash0 request limits are not checked yet |
 | `plan` with tree, coverage and findings | ☑ done: the real Redis dashboard gives 32/36 panels migrated, 1/1 monitor armed |
-| `apply` (Dash0 import) | ☐ **next**: nothing has been imported into Dash0 yet |
+| `apply` (Dash0 import) | ☑ built: confirmation gate, `--dry-run`, hash check, re-validation, stable IDs; tested against a local stand-in server. Real Dash0: an **empty** dashboard imported fine (auth, endpoint, response); panels and check rules **not yet**. |
 | `explain` | ☐ the data is already in `plan.json`; the command is not built |
 | `demo/` live Redis data | ☐ not built |
 
-The biggest open risk is that the generated Perses output hasn't met a real Dash0 yet; see "Not verified against a live Dash0" in [COMPATIBILITY.md](COMPATIBILITY.md).
+**Next step: import the Redis plan (36 panels, 1 alert) into the real Dash0 org.** It is the biggest open risk: no generated panel, variable or check rule has met a real Dash0 yet; see "Not verified against a live Dash0" in [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## Must-have (P0)
 

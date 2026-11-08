@@ -17,7 +17,7 @@ from openborder.targets import dash0_rules, perses
 from openborder.targets.promql import render
 from openborder import validate
 
-PLAN_VERSION = 1
+PLAN_VERSION = 2  # 2: plan.json records the check-rules.json hash and count
 
 
 @dataclass(frozen=True)
@@ -164,9 +164,18 @@ def render_plan_json(plan_: Plan, source: dict, validation: dict) -> bytes:
                 "original": rule.original,
             }
         )
+    check_rules = None
+    if "check-rules.json" in plan_.artifacts:
+        content = plan_.artifacts["check-rules.json"]
+        check_rules = {
+            "artifact": "check-rules.json",
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "count": len(json.loads(content)["items"]),
+        }
     document = {
         "version": PLAN_VERSION,
         "source": source,
+        "check_rules": check_rules,
         "summary": {
             "dashboards": len(plan_.dashboards),
             "panels": plan_.panel_counts(),
