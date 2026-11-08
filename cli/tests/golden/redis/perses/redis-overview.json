@@ -476,7 +476,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"$host\"}[$__rate_interval])) / (avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"$host\"}[$__rate_interval])) + avg(rate({otel_metric_name=\"redis.keyspace.misses\", host_name=~\"$host\"}[$__rate_interval]))) * 100"
+                    "query": "avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"^($host)$\"}[$__rate_interval])) / (avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"^($host)$\"}[$__rate_interval])) + avg(rate({otel_metric_name=\"redis.keyspace.misses\", host_name=~\"^($host)$\"}[$__rate_interval]))) * 100"
                   }
                 }
               }
@@ -496,7 +496,8 @@
             "spec": {
               "calculation": "max",
               "format": {
-                "decimalPlaces": 0
+                "decimalPlaces": 0,
+                "unit": "decimal"
               }
             }
           },
@@ -507,7 +508,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.clients.blocked\", host_name=~\"$host\"})"
+                    "query": "sum({otel_metric_name=\"redis.clients.blocked\", host_name=~\"^($host)$\"})"
                   }
                 }
               }
@@ -527,7 +528,8 @@
             "spec": {
               "calculation": "max",
               "format": {
-                "decimalPlaces": 2
+                "decimalPlaces": 2,
+                "unit": "decimal"
               }
             }
           },
@@ -538,7 +540,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.db.keys\", host_name=~\"$host\"})"
+                    "query": "sum({otel_metric_name=\"redis.db.keys\", host_name=~\"^($host)$\"})"
                   }
                 }
               }
@@ -558,7 +560,8 @@
             "spec": {
               "calculation": "mean",
               "format": {
-                "decimalPlaces": 2
+                "decimalPlaces": 2,
+                "unit": "decimal"
               }
             }
           },
@@ -569,7 +572,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.rdb.changes_since_last_save\", host_name=~\"$host\"})"
+                    "query": "sum({otel_metric_name=\"redis.rdb.changes_since_last_save\", host_name=~\"^($host)$\"})"
                   }
                 }
               }
@@ -601,7 +604,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.replication.master_link_down_since_seconds\", host_name=~\"$host\"})"
+                    "query": "sum({otel_metric_name=\"redis.replication.master_link_down_since_seconds\", host_name=~\"^($host)$\"})"
                   }
                 }
               }
@@ -634,7 +637,8 @@
             "kind": "TimeSeriesChart",
             "spec": {
               "legend": {
-                "position": "bottom"
+                "position": "bottom",
+                "showLegend": true
               },
               "visual": {
                 "display": "line"
@@ -651,7 +655,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "avg by (host_name) ({otel_metric_name=\"redis.info.latency_ms\", host_name=~\"$host\"})",
+                    "query": "avg by (host_name) ({otel_metric_name=\"redis.info.latency_ms\", host_name=~\"^($host)$\"})",
                     "seriesNameFormat": "{{host_name}}"
                   }
                 }
@@ -685,7 +689,8 @@
             "kind": "TimeSeriesChart",
             "spec": {
               "legend": {
-                "position": "bottom"
+                "position": "bottom",
+                "showLegend": true
               },
               "visual": {
                 "areaOpacity": 0.55,
@@ -706,7 +711,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "topk(10, avg_over_time((sum by (name, command) ({otel_metric_name=\"redis.slowlog.micros.95percentile\", host_name=~\"$host\"}) / 1000)[$__range:]))"
+                    "query": "topk(10, avg_over_time((sum by (name, command) ({otel_metric_name=\"redis.slowlog.micros.95percentile\", host_name=~\"^($host)$\"}) / 1000)[$__range:]))"
                   }
                 }
               }
@@ -738,6 +743,9 @@
           "plugin": {
             "kind": "TimeSeriesChart",
             "spec": {
+              "legend": {
+                "showLegend": false
+              },
               "visual": {
                 "display": "line"
               },
@@ -753,7 +761,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "avg({otel_metric_name=\"redis.replication.delay\", host_name=~\"$host\"})",
+                    "query": "avg({otel_metric_name=\"redis.replication.delay\", host_name=~\"^($host)$\"})",
                     "seriesNameFormat": "Offsets"
                   }
                 }
@@ -773,7 +781,8 @@
             "kind": "TimeSeriesChart",
             "spec": {
               "legend": {
-                "position": "bottom"
+                "position": "bottom",
+                "showLegend": true
               },
               "visual": {
                 "display": "line"
@@ -787,7 +796,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "avg(rate({otel_metric_name=\"redis.cpu.time\", state=\"sys\", host_name=~\"$host\"}[$__rate_interval]))",
+                    "query": "avg(rate({otel_metric_name=\"redis.cpu.time\", state=\"sys\", host_name=~\"^($host)$\"}[$__rate_interval]))",
                     "seriesNameFormat": "System"
                   }
                 }
@@ -799,7 +808,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "avg(rate({otel_metric_name=\"redis.cpu.time\", state=\"user\", host_name=~\"$host\"}[$__rate_interval]))",
+                    "query": "avg(rate({otel_metric_name=\"redis.cpu.time\", state=\"user\", host_name=~\"^($host)$\"}[$__rate_interval]))",
                     "seriesNameFormat": "User"
                   }
                 }
@@ -820,7 +829,8 @@
             "spec": {
               "calculation": "mean",
               "format": {
-                "decimalPlaces": 2
+                "decimalPlaces": 2,
+                "unit": "decimal"
               }
             }
           },
@@ -831,7 +841,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"$host\"}[$__rate_interval])) / (avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"$host\"}[$__rate_interval])) + avg(rate({otel_metric_name=\"redis.keyspace.misses\", host_name=~\"$host\"}[$__rate_interval]))) * 100"
+                    "query": "avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"^($host)$\"}[$__rate_interval])) / (avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"^($host)$\"}[$__rate_interval])) + avg(rate({otel_metric_name=\"redis.keyspace.misses\", host_name=~\"^($host)$\"}[$__rate_interval]))) * 100"
                   }
                 }
               }
@@ -849,6 +859,9 @@
           "plugin": {
             "kind": "TimeSeriesChart",
             "spec": {
+              "legend": {
+                "showLegend": false
+              },
               "visual": {
                 "display": "line"
               },
@@ -864,7 +877,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"$host\"}[$__rate_interval])) / (avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"$host\"}[$__rate_interval])) + avg(rate({otel_metric_name=\"redis.keyspace.misses\", host_name=~\"$host\"}[$__rate_interval]))) * 100",
+                    "query": "avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"^($host)$\"}[$__rate_interval])) / (avg(rate({otel_metric_name=\"redis.keyspace.hits\", host_name=~\"^($host)$\"}[$__rate_interval])) + avg(rate({otel_metric_name=\"redis.keyspace.misses\", host_name=~\"^($host)$\"}[$__rate_interval]))) * 100",
                     "seriesNameFormat": "hit %"
                   }
                 }
@@ -884,7 +897,8 @@
             "kind": "TimeSeriesChart",
             "spec": {
               "legend": {
-                "position": "bottom"
+                "position": "bottom",
+                "showLegend": true
               },
               "visual": {
                 "display": "line"
@@ -901,7 +915,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "avg by (host_name) ({otel_metric_name=\"redis.memory.used\", host_name=~\"$host\"}) / max by (host_name) ({otel_metric_name=\"redis.maxmemory\", host_name=~\"$host\"}) * 100",
+                    "query": "avg by (host_name) ({otel_metric_name=\"redis.memory.used\", host_name=~\"^($host)$\"}) / max by (host_name) ({otel_metric_name=\"redis.maxmemory\", host_name=~\"^($host)$\"}) * 100",
                     "seriesNameFormat": "% memory used"
                   }
                 }
@@ -934,6 +948,9 @@
           "plugin": {
             "kind": "TimeSeriesChart",
             "spec": {
+              "legend": {
+                "showLegend": false
+              },
               "visual": {
                 "display": "bar"
               },
@@ -949,7 +966,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "60 * sum by (host_name) (rate({otel_metric_name=\"redis.keys.evicted\", host_name=~\"$host\"}[$__rate_interval]))",
+                    "query": "60 * sum by (host_name) (rate({otel_metric_name=\"redis.keys.evicted\", host_name=~\"^($host)$\"}[$__rate_interval]))",
                     "seriesNameFormat": "Keys evicted due to the maxmemory limit"
                   }
                 }
@@ -968,7 +985,8 @@
             "kind": "TimeSeriesChart",
             "spec": {
               "legend": {
-                "position": "bottom"
+                "position": "bottom",
+                "showLegend": true
               },
               "visual": {
                 "display": "line"
@@ -982,7 +1000,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.memory.rss\", host_name=~\"$host\"})"
+                    "query": "sum({otel_metric_name=\"redis.memory.rss\", host_name=~\"^($host)$\"})"
                   }
                 }
               }
@@ -1002,7 +1020,8 @@
             "spec": {
               "calculation": "mean",
               "format": {
-                "decimalPlaces": 2
+                "decimalPlaces": 2,
+                "unit": "decimal"
               }
             }
           },
@@ -1013,7 +1032,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "avg({otel_metric_name=\"redis.memory.fragmentation_ratio\", host_name=~\"$host\"})"
+                    "query": "avg({otel_metric_name=\"redis.memory.fragmentation_ratio\", host_name=~\"^($host)$\"})"
                   }
                 }
               }
@@ -1031,6 +1050,9 @@
           "plugin": {
             "kind": "TimeSeriesChart",
             "spec": {
+              "legend": {
+                "showLegend": false
+              },
               "visual": {
                 "display": "line"
               },
@@ -1046,7 +1068,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "avg({otel_metric_name=\"redis.memory.fragmentation_ratio\", host_name=~\"$host\"})",
+                    "query": "avg({otel_metric_name=\"redis.memory.fragmentation_ratio\", host_name=~\"^($host)$\"})",
                     "seriesNameFormat": "used_memory_rss / used_memory"
                   }
                 }
@@ -1065,7 +1087,8 @@
             "kind": "TimeSeriesChart",
             "spec": {
               "legend": {
-                "position": "bottom"
+                "position": "bottom",
+                "showLegend": true
               },
               "visual": {
                 "display": "line"
@@ -1082,7 +1105,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.clients.connected\", host_name=~\"$host\"})",
+                    "query": "sum({otel_metric_name=\"redis.clients.connected\", host_name=~\"^($host)$\"})",
                     "seriesNameFormat": "Connected clients"
                   }
                 }
@@ -1115,7 +1138,8 @@
             "kind": "TimeSeriesChart",
             "spec": {
               "legend": {
-                "position": "bottom"
+                "position": "bottom",
+                "showLegend": true
               },
               "visual": {
                 "display": "line"
@@ -1132,7 +1156,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.clients.blocked\", host_name=~\"$host\"})",
+                    "query": "sum({otel_metric_name=\"redis.clients.blocked\", host_name=~\"^($host)$\"})",
                     "seriesNameFormat": "Connections waiting on a blocking call"
                   }
                 }
@@ -1150,6 +1174,9 @@
           "plugin": {
             "kind": "TimeSeriesChart",
             "spec": {
+              "legend": {
+                "showLegend": false
+              },
               "visual": {
                 "display": "line"
               },
@@ -1165,7 +1192,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.slaves.connected\", host_name=~\"$host\"})",
+                    "query": "sum({otel_metric_name=\"redis.slaves.connected\", host_name=~\"^($host)$\"})",
                     "seriesNameFormat": "Connected replicas"
                   }
                 }
@@ -1184,6 +1211,9 @@
           "plugin": {
             "kind": "TimeSeriesChart",
             "spec": {
+              "legend": {
+                "showLegend": false
+              },
               "visual": {
                 "display": "line"
               },
@@ -1199,7 +1229,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.connections.rejected\", host_name=~\"$host\"}) - sum({otel_metric_name=\"redis.connections.rejected\", host_name=~\"$host\"} offset $__interval)",
+                    "query": "sum({otel_metric_name=\"redis.connections.rejected\", host_name=~\"^($host)$\"}) - sum({otel_metric_name=\"redis.connections.rejected\", host_name=~\"^($host)$\"} offset $__interval)",
                     "seriesNameFormat": "Rejected connections"
                   }
                 }
@@ -1220,7 +1250,8 @@
             "spec": {
               "calculation": "mean",
               "format": {
-                "decimalPlaces": 2
+                "decimalPlaces": 2,
+                "unit": "decimal"
               },
               "sparkline": {}
             }
@@ -1232,7 +1263,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum(rate({otel_metric_name=\"redis.commands.processed\", host_name=~\"$host\"}[$__rate_interval]))"
+                    "query": "sum(rate({otel_metric_name=\"redis.commands.processed\", host_name=~\"^($host)$\"}[$__rate_interval]))"
                   }
                 }
               }
@@ -1250,7 +1281,8 @@
             "kind": "TimeSeriesChart",
             "spec": {
               "legend": {
-                "position": "bottom"
+                "position": "bottom",
+                "showLegend": true
               },
               "visual": {
                 "areaOpacity": 0.55,
@@ -1268,7 +1300,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.db.keys\", host_name=~\"$host\"})",
+                    "query": "sum({otel_metric_name=\"redis.db.keys\", host_name=~\"^($host)$\"})",
                     "seriesNameFormat": "Total keys"
                   }
                 }
@@ -1289,7 +1321,8 @@
             "spec": {
               "calculation": "last",
               "format": {
-                "decimalPlaces": 2
+                "decimalPlaces": 2,
+                "unit": "decimal"
               },
               "sparkline": {}
             }
@@ -1301,7 +1334,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.db.keys\", host_name=~\"$host\"})"
+                    "query": "sum({otel_metric_name=\"redis.db.keys\", host_name=~\"^($host)$\"})"
                   }
                 }
               }
@@ -1333,7 +1366,8 @@
             "kind": "TimeSeriesChart",
             "spec": {
               "legend": {
-                "position": "bottom"
+                "position": "bottom",
+                "showLegend": true
               },
               "visual": {
                 "areaOpacity": 0.55,
@@ -1351,7 +1385,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.keys.expired\", host_name=~\"$host\"})",
+                    "query": "sum({otel_metric_name=\"redis.keys.expired\", host_name=~\"^($host)$\"})",
                     "seriesNameFormat": "Expired keys"
                   }
                 }
@@ -1372,7 +1406,8 @@
             "spec": {
               "calculation": "last",
               "format": {
-                "decimalPlaces": 2
+                "decimalPlaces": 2,
+                "unit": "decimal"
               },
               "sparkline": {}
             }
@@ -1384,7 +1419,7 @@
                 "plugin": {
                   "kind": "PrometheusTimeSeriesQuery",
                   "spec": {
-                    "query": "sum({otel_metric_name=\"redis.db.expires\", host_name=~\"$host\"})"
+                    "query": "sum({otel_metric_name=\"redis.db.expires\", host_name=~\"^($host)$\"})"
                   }
                 }
               }

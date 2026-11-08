@@ -36,6 +36,7 @@ def _plugin_spec(panel: Panel) -> dict:
     if panel.kind == "StatChart":
         if "decimals" in o:
             fmt["decimalPlaces"] = o["decimals"]
+            fmt.setdefault("unit", "decimal")  # every Dash0 format object requires a `unit`
         spec = {"calculation": o["calculation"]}
         if fmt:
             spec["format"] = fmt
@@ -46,8 +47,7 @@ def _plugin_spec(panel: Panel) -> dict:
     if o.get("display") == "area":
         visual["areaOpacity"] = 0.55
     spec = {"visual": visual}
-    if o.get("legend"):
-        spec["legend"] = {"position": "bottom"}
+    spec["legend"] = {"showLegend": True, "position": "bottom"} if o.get("legend") else {"showLegend": False}
     axis = {}
     if fmt:
         axis["format"] = fmt

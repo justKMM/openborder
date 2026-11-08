@@ -162,8 +162,8 @@ def _matchers(filters, ctx: Ctx, rec: Recorder) -> list[Matcher]:
                     )
             else:
                 label = _label(prefix, ctx, rec)
-                out.append(Matcher(label, "=~", f"${f.name}"))
-                rec.step("dd.var.prefixed", EXACT, f"${f.name}", f'{label}=~"${f.name}"')
+                out.append(Matcher(label, "=~", f"^(${f.name})$"))
+                rec.step("dd.var.prefixed", EXACT, f"${f.name}", f'{label}=~"^(${f.name})$"')
         elif isinstance(f, qp.TagFilter):
             label = _label(f.key, ctx, rec)
             if any(v.startswith("$") for v in f.values):
@@ -172,8 +172,8 @@ def _matchers(filters, ctx: Ctx, rec: Recorder) -> list[Matcher]:
                 name = f.values[0][1:]
                 if name not in ctx.variables:
                     raise Unsupported("dd.var.unknown", f"filter uses ${name}, which is not a template variable of this dashboard")
-                out.append(Matcher(label, "!~" if f.negate else "=~", f"${name}"))
-                rec.step("dd.var.prefixed", EXACT, f"{f.key}:${name}", f'{label}=~"${name}"')
+                out.append(Matcher(label, "!~" if f.negate else "=~", f"^(${name})$"))
+                rec.step("dd.var.prefixed", EXACT, f"{f.key}:${name}", f'{label}=~"^(${name})$"')
                 continue
             for v in f.values:
                 if v != v.lower():
@@ -192,6 +192,9 @@ def _matchers(filters, ctx: Ctx, rec: Recorder) -> list[Matcher]:
             else:
                 op = "!~" if f.negate else "=~"
                 pattern = "|".join(_regex_value(v) for v in f.values)
+                # Prometheus anchors regex matchers, but Dash0 documents `=~` as an unanchored search.
+                # Anchoring explicitly gives the Datadog meaning (whole value) under both.
+                pattern = f"^({pattern})$" if len(f.values) > 1 else f"^{pattern}$"
                 out.append(Matcher(label, op, pattern))
                 rule = "dd.filter.in" if len(f.values) > 1 else "dd.filter.wildcard"
                 rec.step(rule, EXACT, f"{f.key}:{','.join(f.values)}", f'{label}{op}"{pattern}"')
