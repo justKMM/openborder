@@ -1,56 +1,10 @@
-import json
 import os
-import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
+from fakes import FakeDash0
 
 TESTS = Path(__file__).parent
-
-
-class FakeDash0:
-    """A real HTTP server standing in for Dash0, so the actual client code runs over a real socket.
-
-    `requests` records every call; `responses` maps a path to (status, payload) to override the default
-    behaviour (dashboards are echoed back, check rules answer {"created": n}).
-    """
-
-    def __init__(self):
-        self.requests: list[dict] = []
-        self.responses: dict[str, tuple[int, object]] = {}
-        outer = self
-
-        class Handler(BaseHTTPRequestHandler):
-            def do_POST(self):
-                raw = self.rfile.read(int(self.headers.get("Content-Length", 0)))
-                body = json.loads(raw) if raw else None
-                path, _, query = self.path.partition("?")
-                outer.requests.append({"path": path, "query": query, "auth": self.headers.get("Authorization"), "body": body})
-                status, payload = outer.responses.get(path) or outer._default(path, body)
-                data = json.dumps(payload).encode()
-                self.send_response(status)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(data)))
-                self.end_headers()
-                self.wfile.write(data)
-
-            def log_message(self, *args):
-                pass
-
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
-
-    @staticmethod
-    def _default(path, body):
-        if path == "/api/import/check-rules":
-            return 200, {"created": len(body["items"])}
-        return 200, body
-
-    def close(self):
-        self.server.shutdown()
-        self.server.server_close()
 
 
 @pytest.fixture

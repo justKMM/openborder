@@ -23,6 +23,24 @@ def is_monitor(obj) -> bool:
     return "query" in d and "type" in d
 
 
+def _classify(label: str, obj, loaded: Loaded) -> None:
+    for item in obj if isinstance(obj, list) else [obj]:
+        if is_dashboard(item):
+            loaded.dashboards.append(item)
+        elif is_monitor(item):
+            loaded.monitors.append(item)
+        else:
+            loaded.skipped.append((label, "not a Datadog dashboard or monitor"))
+
+
+def load_documents(documents: list[tuple[str, object]]) -> Loaded:
+    """Sort already-parsed JSON documents, given as (label, content), into dashboards and monitors (pure)."""
+    loaded = Loaded()
+    for label, obj in documents:
+        _classify(label, obj, loaded)
+    return loaded
+
+
 def load_directory(root: Path) -> Loaded:
     """Recursively read *.json under `root`. Files that are not dashboards or monitors are reported, not ignored."""
     loaded = Loaded()
@@ -33,11 +51,5 @@ def load_directory(root: Path) -> Loaded:
         except (OSError, ValueError) as e:
             loaded.skipped.append((rel, f"unreadable JSON: {e}"))
             continue
-        for item in obj if isinstance(obj, list) else [obj]:
-            if is_dashboard(item):
-                loaded.dashboards.append(item)
-            elif is_monitor(item):
-                loaded.monitors.append(item)
-            else:
-                loaded.skipped.append((rel, "not a Datadog dashboard or monitor"))
+        _classify(rel, obj, loaded)
     return loaded

@@ -1,6 +1,6 @@
 import pytest
 
-from openborder.report import filter_by_name
+from openborder.service import filter_by_name
 from openborder.sources.datadog.client import explain_http_error, normalize_site, paginate
 
 

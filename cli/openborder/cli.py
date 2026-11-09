@@ -5,13 +5,12 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from openborder import __version__, config, core, promtool, report
+from openborder import __version__, config, report, service
 from openborder import explain as explainer
 from openborder.apply import PlanError, load_plan
 from openborder.dash0_client import Dash0Client, Dash0Error
-from openborder.sources.datadog.client import DatadogClient, DatadogError
+from openborder.sources.datadog.client import DatadogError
 from openborder.sources.datadog.files import load_directory
-from openborder.targets.promql import render
 
 app = typer.Typer(
     help="OpenBorder: migrate Datadog dashboards and monitors to Dash0, deterministically.",
@@ -100,30 +99,14 @@ def discover(
         console.print(f"[red]Missing {', '.join(missing)}.[/red] Run `python -m openborder init` first.")
         raise typer.Exit(code=1)
     try:
-        with DatadogClient(settings["DD_API_KEY"], settings["DD_APP_KEY"], settings["DD_SITE"]) as dd:
-            dashboards = dd.list_dashboards()
-            monitors = dd.list_monitors(monitor_tags=tag)
-            site = dd.site
+        found = service.run_discover(settings["DD_API_KEY"], settings["DD_APP_KEY"], settings["DD_SITE"], name, tag)
     except DatadogError as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(code=1)
-    dashboards = report.filter_by_name(dashboards, "title", name)
-    monitors = report.filter_by_name(monitors, "name", name)
     if as_json:
-        document = {
-            "site": site,
-            "dashboards": [
-                {k: d.get(k) for k in ("id", "title", "description", "layout_type", "modified_at")}
-                for d in sorted(dashboards, key=lambda d: (str(d.get("title", "")).lower(), str(d.get("id"))))
-            ],
-            "monitors": [
-                {"id": m.get("id"), "name": m.get("name"), "type": m.get("type"), "tags": m.get("tags") or []}
-                for m in sorted(monitors, key=lambda m: (str(m.get("name", "")).lower(), m.get("id", 0)))
-            ],
-        }
-        typer.echo(json.dumps(document, indent=2, ensure_ascii=False))
+        typer.echo(json.dumps(service.discovery_document(found), indent=2, ensure_ascii=False))
         return
-    report.print_discovery(console, dashboards, monitors, site)
+    report.print_discovery(console, found.dashboards, found.monitors, found.site)
 
 
 def _fail(message: str, code: int = 1) -> typer.Exit:
@@ -148,83 +131,42 @@ def plan(
     promtool_check: bool = typer.Option(True, "--promtool/--no-promtool", help="Syntax-check PromQL with promtool (needs Docker)."),
 ) -> None:
     """Translate dashboards and monitors and write reviewable artifacts (nothing is imported)."""
-    if from_dir is not None:
-        if not from_dir.is_dir():
-            raise _fail(f"--from-dir {from_dir} is not a folder.")
-        loaded = load_directory(from_dir)
-        dashboards, monitors, skipped = loaded.dashboards, loaded.monitors, loaded.skipped
-        source = {"kind": "datadog", "mode": "files", "path": str(from_dir)}
-        site = None
-    else:
-        settings = config.load_settings()
-        missing = [k for k in ("DD_API_KEY", "DD_APP_KEY") if k not in settings]
-        if missing:
-            raise _fail(f"Missing {', '.join(missing)}. Run `python -m openborder init`, or use --from-dir.")
-        dashboards, monitors, skipped = [], [], []
-        try:
-            with DatadogClient(settings["DD_API_KEY"], settings["DD_APP_KEY"], settings["DD_SITE"]) as dd:
-                site = dd.site
-                if not no_dashboards:
-                    summaries = dd.list_dashboards()
-                    if dashboard:
-                        unknown = sorted(set(dashboard) - {s["id"] for s in summaries})
-                        if unknown:
-                            raise _fail(f"No such dashboard ID(s) in {site}: {', '.join(unknown)}. Run `discover` to list them.")
-                        summaries = [s for s in summaries if s["id"] in dashboard]
-                    dashboards = [dd.get_dashboard(s["id"]) for s in summaries]
-                if not no_monitors:
-                    monitors = dd.list_monitors(monitor_tags=monitor_tag)
-        except DatadogError as e:
-            raise _fail(str(e))
-        source = {"kind": "datadog", "mode": "api", "site": site}
+    try:
+        if from_dir is not None:
+            if not from_dir.is_dir():
+                raise _fail(f"--from-dir {from_dir} is not a folder.")
+            loaded = load_directory(from_dir)
+            inputs = service.Inputs(
+                loaded.dashboards, loaded.monitors, loaded.skipped, {"kind": "datadog", "mode": "files", "path": str(from_dir)}
+            )
+        else:
+            settings = config.load_settings()
+            missing = [k for k in ("DD_API_KEY", "DD_APP_KEY") if k not in settings]
+            if missing:
+                raise _fail(f"Missing {', '.join(missing)}. Run `python -m openborder init`, or use --from-dir.")
+            inputs = service.fetch_from_datadog(
+                settings["DD_API_KEY"],
+                settings["DD_APP_KEY"],
+                settings["DD_SITE"],
+                dashboard_ids=dashboard,
+                monitor_tag=monitor_tag,
+                dashboards=not no_dashboards,
+                monitors=not no_monitors,
+            )
+        inputs = service.select_inputs(
+            inputs, name=name, monitor_tag=monitor_tag, dashboards=not no_dashboards, monitors=not no_monitors
+        )
+    except DatadogError as e:
+        raise _fail(str(e))
+    except service.ServiceError as e:
+        raise _fail(f"{e} {e.hint}".strip())
 
-    if no_dashboards:
-        dashboards = []
-    if no_monitors:
-        monitors = []
-    if name:
-        dashboards = report.filter_by_name(dashboards, "title", name)
-        monitors = [m for m in monitors if name.lower() in str((m.get("definition") or m).get("name", "")).lower()]
-    if monitor_tag and from_dir is not None:
-        monitors = [m for m in monitors if monitor_tag in ((m.get("definition") or m).get("tags") or []) + (m.get("tags") or [])]
-    if not dashboards and not monitors:
-        raise _fail("Nothing to plan: no dashboards or monitors matched." + (" Run `discover` to see what the org contains." if from_dir is None else ""))
-
-    result = core.plan(dashboards, monitors, core.PlanOptions(enable_approximate=enable_approximate), skipped=skipped)
-
-    validation: dict = {"structure": result.structure_errors}
-    if promtool_check:
-        expressions = {}
-        for dash in result.dashboards:
-            for p in dash.panels:
-                for i, q in enumerate(p.queries):
-                    expressions[f"{dash.title} / {p.title or p.key} [{i + 1}]"] = render(q.expr)
-        for rule in result.rules:
-            if rule.expr is not None:
-                expressions[f"monitor {rule.name}"] = render(rule.expr)
-        with console.status("Checking PromQL with promtool (Docker)..."):
-            outcome = promtool.check(expressions)
-        validation["promtool"] = {"ran": outcome.ran, "reason": outcome.reason, "checked": outcome.checked, "errors": outcome.errors}
-    else:
-        validation["promtool"] = {"ran": False, "reason": "skipped (--no-promtool)"}
-
-    out.mkdir(parents=True, exist_ok=True)
-    perses_dir = out / "perses"
-    if (out / "plan.json").exists() and perses_dir.is_dir():  # our own earlier output: drop stale dashboards
-        for old in perses_dir.glob("*.json"):
-            old.unlink()
-    if not result.rules and (out / "check-rules.json").exists() and (out / "plan.json").exists():
-        (out / "check-rules.json").unlink()
-    for relative, content in result.artifacts.items():
-        target = out / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(content)
-    (out / "plan.json").write_bytes(core.render_plan_json(result, source, validation))
-
-    report.print_plan(console, result, out, validation)
+    run = service.run_plan(
+        inputs, out, enable_approximate=enable_approximate, promtool_check=promtool_check, status=console.status
+    )
+    report.print_plan(console, run.plan, out, run.validation)
     console.print(f"Artifacts written to [bold]{out}[/bold]  ·  review them, then run `python -m openborder apply {out}`")
-    failed = bool(result.structure_errors) or bool(validation["promtool"].get("errors"))
-    if failed:
+    if run.failed:
         raise typer.Exit(code=1)
 
 
@@ -263,39 +205,25 @@ def apply(
             console.print("[yellow]Cancelled. Nothing was imported.[/yellow]")
             raise typer.Exit(code=1)
 
-    results: dict = {"target": {"api_url": client.api_url, "dataset": client.dataset}, "dashboards": [], "check_rules": None}
-    failures = 0
-    console.print()
-    with client:
-        for d in loaded.dashboards:
-            try:
-                response = client.import_dashboard(d.body)
-                fallback = d.body["metadata"]["dash0Extensions"]["id"]
-                dash0_id = ((response.get("metadata") or {}).get("dash0Extensions") or {}).get("id") or fallback
-                console.print(f"[green]✓[/green] dashboard [bold]{d.title}[/bold]  [dim]{dash0_id}[/dim]")
-                results["dashboards"].append({"title": d.title, "artifact": d.artifact, "status": "imported", "id": dash0_id})
-            except Dash0Error as e:
-                failures += 1
-                console.print(f"[red]✗ dashboard {d.title}[/red]\n  {e}")
-                results["dashboards"].append({"title": d.title, "artifact": d.artifact, "status": "failed", "error": str(e)})
-        if loaded.rules:
-            try:
-                response = client.import_check_rules(loaded.rules)
-                created = response.get("created")
-                note = ""
-                if isinstance(created, int) and created < len(loaded.rules):
-                    note = f" ({created} newly created, {len(loaded.rules) - created} overwrote existing rules)"
-                console.print(f"[green]✓[/green] {len(loaded.rules)} check rule(s) imported{note}")
-                results["check_rules"] = {"status": "imported", "sent": len(loaded.rules), "created": created}
-            except Dash0Error as e:
-                failures += 1
-                console.print(f"[red]✗ check rules[/red]\n  {e}")
-                results["check_rules"] = {"status": "failed", "sent": len(loaded.rules), "error": str(e)}
+    def show(kind: str, entry: dict) -> None:
+        if kind == "dashboard" and entry["status"] == "imported":
+            console.print(f"[green]✓[/green] dashboard [bold]{entry['title']}[/bold]  [dim]{entry['id']}[/dim]")
+        elif kind == "dashboard":
+            console.print(f"[red]✗ dashboard {entry['title']}[/red]\n  {entry['error']}")
+        elif entry["status"] == "imported":
+            created, sent = entry["created"], entry["sent"]
+            note = ""
+            if isinstance(created, int) and created < sent:
+                note = f" ({created} newly created, {sent - created} overwrote existing rules)"
+            console.print(f"[green]✓[/green] {sent} check rule(s) imported{note}")
+        else:
+            console.print(f"[red]✗ check rules[/red]\n  {entry['error']}")
 
-    (plan_dir / "apply.json").write_text(json.dumps(results, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
-    if failures:
+    console.print()
+    outcome = service.run_apply(loaded, client, plan_dir, on_result=show)
+    if outcome.failures:
         console.print(
-            f"\n[red]Apply finished with {failures} failure(s).[/red] Items that succeeded are in Dash0. "
+            f"\n[red]Apply finished with {outcome.failures} failure(s).[/red] Items that succeeded are in Dash0. "
             "Fix the cause and run `apply` again: every item has a stable ID, so Dash0 overwrites instead of duplicating."
         )
         raise typer.Exit(code=1)

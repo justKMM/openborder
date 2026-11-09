@@ -1,0 +1,3 @@
+-r ../cli/requirements.txt
+fastapi==0.162.2
+uvicorn==0.54.0

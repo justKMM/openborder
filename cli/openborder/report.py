@@ -163,13 +163,6 @@ def print_plan(console: Console, plan, out_dir, validation: dict) -> None:
         console.print(f"[yellow]PromQL syntax was not checked with promtool: {promtool.get('reason')}[/yellow]")
 
 
-def filter_by_name(items: list[dict], key: str, text: str | None) -> list[dict]:
-    if not text:
-        return items
-    needle = text.lower()
-    return [item for item in items if needle in str(item.get(key, "")).lower()]
-
-
 def print_discovery(console: Console, dashboards: list[dict], monitors: list[dict], site: str) -> None:
     dashboards = sorted(dashboards, key=lambda d: (str(d.get("title", "")).lower(), str(d.get("id"))))
     monitors = sorted(monitors, key=lambda m: (str(m.get("name", "")).lower(), m.get("id", 0)))
